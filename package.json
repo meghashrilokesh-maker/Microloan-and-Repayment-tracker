@@ -1,0 +1,20 @@
+{
+  "name": "microloan-and-repayment-tracker",
+  "version": "1.0.0",
+  "description": "A societal project to help small vendors manage microloans, repayments, daily sales, and expenses.",
+  "private": true,
+  "scripts": {
+    "server:dev": "npm --prefix server run dev",
+    "server:start": "npm --prefix server start",
+    "client:dev": "npm --prefix client run dev",
+    "client:build": "npm --prefix client run build"
+  },
+  "keywords": [
+    "microloan",
+    "repayment-tracker",
+    "street-vendors",
+    "financial-inclusion"
+  ],
+  "author": "",
+  "license": "ISC"
+}

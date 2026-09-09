@@ -1,0 +1,91 @@
+// Prisma Schema for Microloan and Repayment Tracker
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Vendor {
+  id                String      @id @default(uuid())
+  phone             String      @unique
+  passwordHash      String
+  fullName          String
+  businessName      String
+  businessType      String      @default("General Store")
+  preferredLanguage String      @default("en") // "en", "kn", "hi"
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  loans             Loan[]
+  repayments        Repayment[]
+  sales             Sale[]
+  expenses          Expense[]
+}
+
+model Loan {
+  id                  String      @id @default(uuid())
+  vendorId            String
+  vendor              Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  lenderName          String
+  principalAmount     Float
+  interestRatePercent Float       // Annual flat percentage e.g. 5.0
+  interestType        String      @default("FLAT") // "FLAT"
+  tenureValue         Int         // e.g. 3
+  tenureUnit          String      @default("MONTHS") // "DAYS", "WEEKS", "MONTHS"
+  repaymentFrequency  String      @default("DAILY")  // "DAILY", "WEEKLY", "MONTHLY"
+  
+  totalInterestAmount Float       // e.g. 125.0
+  totalPayableAmount  Float       // e.g. 10125.0
+  installmentAmount   Float       // calculated fixed installment
+  startDate           DateTime
+  endDate             DateTime?
+  status              String      @default("ACTIVE") // "ACTIVE", "CLOSED"
+  notes               String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  repayments          Repayment[]
+}
+
+model Repayment {
+  id          String   @id @default(uuid())
+  loanId      String
+  loan        Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  amountPaid  Float
+  paymentDate DateTime @default(now())
+  paymentMode String   @default("CASH") // "CASH", "UPI", "BANK"
+  receiptNote String?
+  createdAt   DateTime @default(now())
+}
+
+model Sale {
+  id          String   @id @default(uuid())
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  date        DateTime @default(now())
+  amount      Float
+  paymentMode String   @default("CASH") // "CASH", "UPI"
+  note        String?
+  createdAt   DateTime @default(now())
+}
+
+model Expense {
+  id        String   @id @default(uuid())
+  vendorId  String
+  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  date      DateTime @default(now())
+  amount    Float
+  category  String   @default("GENERAL") // "INVENTORY", "RENT", "TRANSPORT", "UTILITY", "PERSONAL", "GENERAL"
+  note      String?
+  createdAt DateTime @default(now())
+}
