@@ -10,7 +10,7 @@ const INITIAL_PROFILE = {
   phone: '9876543210',
   language: 'en',
   location: 'City Market, Cross 4, Bengaluru',
-  avatar: '/images/vendor-tea.jpg',
+  avatar: '/images/vendor-cottoncandy.png',
   hasCompletedOnboarding: true,
   isLoggedIn: true
 };

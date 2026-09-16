@@ -3,11 +3,19 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --bg-canvas: #FAF7F2;
+    --card-surface: #FFFFFF;
+    --text-primary: #2D2825;
+    --text-secondary: #6E6763;
+    --border-subtle: #EBE3D7;
+  }
+
   body {
     margin: 0;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    background-color: #FAF9F5;
-    color: #1E293B;
+    background-color: #FAF7F2;
+    color: #2D2825;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-tap-highlight-color: transparent;
@@ -15,16 +23,39 @@
 
   h1, h2, h3, h4, .font-display {
     font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.015em;
+  }
+
+  .font-serif {
+    font-family: 'Playfair Display', Georgia, serif;
+    letter-spacing: -0.01em;
   }
 }
 
-/* Natural image blending for integrated pictures */
-.vendor-photo-blend {
-  mix-blend-mode: multiply;
-  filter: contrast(1.02) brightness(1.01);
+/* Seamless 2D Illustration styling - natural integration without photo borders */
+.vendor-illustration-native {
+  filter: drop-shadow(0 8px 16px rgba(120, 100, 80, 0.08));
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Custom subtle scrollbar */
+.vendor-illustration-container:hover .vendor-illustration-native {
+  transform: translateY(-2px) scale(1.02);
+}
+
+/* Organic curved arches & backdrops inspired by reference designs */
+.pastel-arch-bg {
+  border-radius: 9999px 9999px 24px 24px;
+}
+
+.pastel-blob-bg {
+  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+}
+
+.pastel-pill-bg {
+  border-radius: 9999px;
+}
+
+/* Subtle warm scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -33,15 +64,23 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #E2E8F0;
+  background: #E6DFD5;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #CBD5E1;
+  background: #D4C9BC;
 }
 
-/* Subtle ripple / touch active state */
+/* Soft touch feedback */
 .touch-press:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
   transition: transform 0.1s ease;
+}
+
+/* Elegant glass card */
+.pastel-glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(235, 227, 215, 0.7);
 }

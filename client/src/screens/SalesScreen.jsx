@@ -2,15 +2,10 @@ import React, { useState } from 'react';
 import { 
   TrendingUp, 
   Plus, 
-  Mic, 
-  Calendar, 
-  Trash2, 
-  Filter, 
-  Tag, 
-  CheckCircle2,
-  Sparkles
+  Trash2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import NaturalVendorImage from '../components/NaturalVendorImage';
 import { AddSaleModal } from '../components/TransactionModals';
 
 export default function SalesScreen() {
@@ -50,45 +45,52 @@ export default function SalesScreen() {
 
   return (
     <div className="space-y-4 animate-in fade-in">
-      {/* Header Banner featuring Tea Vendor picture seamlessly blended */}
-      <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-white rounded-3xl p-4 sm:p-5 border border-emerald-100 shadow-soft flex items-center justify-between gap-3">
-        <div>
-          <span className="text-[10px] font-bold tracking-wider text-emerald-800 uppercase bg-emerald-100/70 px-2 py-0.5 rounded-md">
+      {/* Header Banner featuring 2D Cotton Candy Street Vendor seamlessly integrated */}
+      <div className="relative overflow-hidden bg-[#F7F3EB] rounded-3xl p-5 border border-[#EAE1D4] shadow-soft flex items-center justify-between gap-3">
+        <div className="absolute top-0 right-12 w-32 h-44 bg-[#EAF0E9]/70 rounded-b-full pointer-events-none -z-0" />
+        <div className="absolute -bottom-6 right-2 w-28 h-28 bg-[#FAEEF0]/60 rounded-full pointer-events-none -z-0" />
+
+        <div className="z-10">
+          <span className="text-[10px] font-bold tracking-wider text-[#425541] uppercase bg-[#E9EFE8] px-2.5 py-0.5 rounded-full border border-[#D3DFD2]">
             Earnings & Revenue
           </span>
-          <h1 className="font-display font-bold text-xl sm:text-2xl text-slate-900 mt-1">
+          <h1 className="font-serif font-bold text-xl sm:text-2xl text-[#2D2825] mt-1.5">
             {t.salesTracker}
           </h1>
-          <p className="text-xs text-slate-600 font-medium mt-0.5">
-            Record every sale easily with touch or voice
+          <p className="text-xs text-[#7C746F] font-medium mt-0.5">
+            Record every sale effortlessly with touch or quick log
           </p>
         </div>
-        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-white/70 p-1 shrink-0 flex items-center justify-center border border-emerald-100">
-          <img 
-            src="/images/vendor-tea.jpg" 
-            alt="Tea Vendor" 
-            className="w-full h-full object-contain vendor-photo-blend"
+
+        <div className="relative shrink-0 z-10">
+          <NaturalVendorImage 
+            type="cottoncandy"
+            size="md"
+            backdrop="arch"
+            backdropColor="sage"
+            showBotanical={true}
+            alt="Street Vendor Illustration"
           />
         </div>
       </div>
 
       {/* 3 Summary Cards (Today, This Week, This Month) */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="bg-white rounded-2xl p-3 border border-emerald-100 shadow-soft text-center">
-          <span className="text-[10px] font-semibold text-slate-500 block">{t.todayTotal}</span>
-          <span className="font-display font-bold text-base sm:text-lg text-emerald-700">
+        <div className="bg-white rounded-2xl p-3.5 border border-[#D3DFD2] shadow-soft text-center bg-[#F5F8F5]/50">
+          <span className="text-[10px] font-semibold text-[#7C746F] block">{t.todayTotal}</span>
+          <span className="font-serif font-bold text-base sm:text-lg text-[#566E54] mt-0.5 block">
             ₹{todaySalesTotal.toLocaleString()}
           </span>
         </div>
-        <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-soft text-center">
-          <span className="text-[10px] font-semibold text-slate-500 block">{t.weekTotal}</span>
-          <span className="font-display font-bold text-base sm:text-lg text-slate-800">
+        <div className="bg-white rounded-2xl p-3.5 border border-[#EBE3D7] shadow-soft text-center">
+          <span className="text-[10px] font-semibold text-[#7C746F] block">{t.weekTotal}</span>
+          <span className="font-serif font-bold text-base sm:text-lg text-[#2D2825] mt-0.5 block">
             ₹{weeklySalesTotal.toLocaleString()}
           </span>
         </div>
-        <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-soft text-center">
-          <span className="text-[10px] font-semibold text-slate-500 block">{t.monthTotal}</span>
-          <span className="font-display font-bold text-base sm:text-lg text-slate-800">
+        <div className="bg-white rounded-2xl p-3.5 border border-[#EBE3D7] shadow-soft text-center">
+          <span className="text-[10px] font-semibold text-[#7C746F] block">{t.monthTotal}</span>
+          <span className="font-serif font-bold text-base sm:text-lg text-[#2D2825] mt-0.5 block">
             ₹{monthlySalesTotal.toLocaleString()}
           </span>
         </div>
@@ -101,10 +103,10 @@ export default function SalesScreen() {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 touch-press ${
                 selectedCategory === cat
-                  ? 'bg-emerald-600 text-white shadow-soft'
-                  : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                  ? 'bg-[#566E54] text-white shadow-soft'
+                  : 'bg-white text-[#7C746F] hover:bg-[#FAF7F2] border border-[#EBE3D7]'
               }`}
             >
               {cat === 'All' ? 'All' : cat}
@@ -114,7 +116,7 @@ export default function SalesScreen() {
 
         <button
           onClick={() => setAddSaleOpen(true)}
-          className="shrink-0 flex items-center gap-1.5 py-2 px-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-soft transition active:scale-95"
+          className="shrink-0 flex items-center gap-1.5 py-2 px-4 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-bold text-xs shadow-pastel transition active:scale-95 touch-press"
         >
           <Plus className="w-4 h-4" />
           <span>{t.addSale}</span>
@@ -123,8 +125,8 @@ export default function SalesScreen() {
 
       {/* Sales Transactions List */}
       {filteredSales.length > 0 ? (
-        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-soft space-y-2 divide-y divide-slate-100">
-          <div className="flex items-center justify-between pb-2 text-xs text-slate-500 font-semibold">
+        <div className="bg-white rounded-3xl p-5 border border-[#EBE3D7] shadow-soft space-y-2 divide-y divide-[#F3EDE3]">
+          <div className="flex items-center justify-between pb-2 text-xs text-[#7C746F] font-semibold">
             <span>{filteredSales.length} Entries Recorded</span>
             <span>Sorted by Most Recent</span>
           </div>
@@ -132,20 +134,20 @@ export default function SalesScreen() {
           {filteredSales.map((sale) => (
             <div key={sale.id} className="pt-3 pb-1 flex items-center justify-between gap-2 group">
               <div className="flex items-start gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold shrink-0 mt-0.5">
+                <div className="w-9 h-9 rounded-xl bg-[#E9EFE8] text-[#566E54] border border-[#D3DFD2] flex items-center justify-center font-bold shrink-0 mt-0.5">
                   <TrendingUp className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-xs text-slate-900">
+                    <span className="font-semibold text-xs text-[#2D2825]">
                       {sale.category}
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-[10px] text-[#8E8681]">
                       {sale.date} {sale.time ? `• ${sale.time}` : ''}
                     </span>
                   </div>
                   {sale.note && (
-                    <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[180px] sm:max-w-xs">
+                    <p className="text-[11px] text-[#7C746F] mt-0.5 truncate max-w-[180px] sm:max-w-xs">
                       {sale.note}
                     </p>
                   )}
@@ -153,13 +155,13 @@ export default function SalesScreen() {
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="font-display font-bold text-sm sm:text-base text-emerald-700">
+                <span className="font-serif font-bold text-sm sm:text-base text-[#566E54]">
                   +₹{Number(sale.amount).toLocaleString()}
                 </span>
                 <button
                   onClick={() => deleteTransaction('sale', sale.id)}
                   title="Delete entry"
-                  className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-rose-500 transition"
+                  className="opacity-0 group-hover:opacity-100 p-1 text-[#C3B099] hover:text-[#BF745F] transition"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -169,19 +171,25 @@ export default function SalesScreen() {
         </div>
       ) : (
         /* Empty State */
-        <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-soft text-center space-y-3">
-          <div className="w-20 h-20 rounded-full bg-emerald-50 mx-auto flex items-center justify-center p-2">
-            <TrendingUp className="w-8 h-8 text-emerald-600" />
+        <div className="bg-white rounded-3xl p-8 border border-[#EBE3D7] shadow-soft text-center space-y-3.5">
+          <div className="relative mx-auto flex items-center justify-center">
+            <NaturalVendorImage 
+              type="cottoncandy"
+              size="lg"
+              backdrop="blob"
+              backdropColor="sage"
+              alt="No sales"
+            />
           </div>
-          <h3 className="font-display font-bold text-base text-slate-900">
+          <h3 className="font-serif font-bold text-base text-[#2D2825]">
             No sales recorded today
           </h3>
-          <p className="text-xs text-slate-500 max-w-xs mx-auto">
+          <p className="text-xs text-[#7C746F] max-w-xs mx-auto">
             {t.addFirstSale}
           </p>
           <button
             onClick={() => setAddSaleOpen(true)}
-            className="py-2.5 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-soft transition"
+            className="py-2.5 px-6 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-bold text-xs shadow-pastel transition touch-press"
           >
             + {t.addSale}
           </button>

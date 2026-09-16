@@ -3,15 +3,10 @@ import {
   TrendingUp, 
   TrendingDown, 
   Landmark, 
-  IndianRupee, 
   Mic, 
-  MicOff, 
   Check, 
-  AlertCircle, 
   Sparkles,
   Calendar,
-  Layers,
-  FileText,
   CreditCard,
   ShieldAlert
 } from 'lucide-react';
@@ -73,45 +68,45 @@ export function AddSaleModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-soft-lg">
+    <div className="fixed inset-0 z-50 bg-[#2D2825]/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-soft-lg border border-[#EBE3D7]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+        <div className="flex items-center justify-between pb-3 border-b border-[#F3EDE3]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#E9EFE8] text-[#566E54] border border-[#D3DFD2] flex items-center justify-center font-bold">
               <TrendingUp className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="font-display font-bold text-base text-slate-900">{t.addSale}</h2>
-              <p className="text-[11px] text-slate-500">Record incoming money from customers</p>
+              <h2 className="font-serif font-bold text-base text-[#2D2825]">{t.addSale}</h2>
+              <p className="text-[11px] text-[#7C746F]">Record incoming money from customers</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-sm font-bold"
+            className="w-8 h-8 rounded-full bg-[#FAF7F2] text-[#7C746F] hover:bg-[#F3EDE3] border border-[#EBE3D7] flex items-center justify-center text-xs font-bold transition touch-press"
           >
             ✕
           </button>
         </div>
 
         {/* Voice Entry Button Card */}
-        <div className="mt-4 p-3 bg-emerald-50/70 border border-emerald-200 rounded-2xl flex items-center justify-between gap-2">
+        <div className="mt-4 p-3.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={handleVoiceSimulation}
               disabled={isListening}
-              className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-soft transition active:scale-95 ${
-                isListening ? 'bg-rose-500 animate-pulse' : 'bg-emerald-600 hover:bg-emerald-700'
+              className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-soft transition active:scale-95 touch-press ${
+                isListening ? 'bg-[#BF745F] animate-pulse' : 'bg-[#566E54] hover:bg-[#425541]'
               }`}
             >
               <Mic className="w-5 h-5" />
             </button>
             <div>
-              <span className="text-xs font-bold text-slate-800 block">
+              <span className="text-xs font-bold text-[#2D2825] block">
                 {isListening ? t.listening : t.speakSale}
               </span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-[#7C746F]">
                 {t.speakPrompt}
               </span>
             </div>
@@ -120,28 +115,28 @@ export function AddSaleModal({ isOpen, onClose }) {
 
         {/* Voice confirmation dialog */}
         {voiceDraft && (
-          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-2xl animate-in fade-in">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
-              <Sparkles className="w-4 h-4 text-amber-600" />
+          <div className="mt-3 p-3.5 bg-[#FBF5F0] border border-[#F0D7CD] rounded-2xl animate-in fade-in">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#874937]">
+              <Sparkles className="w-4 h-4 text-[#BF745F]" />
               <span>{t.confirmVoiceTitle}</span>
             </div>
-            <p className="text-xs text-slate-700 mt-1 italic">{voiceDraft.spokenText}</p>
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-amber-200 text-xs">
-              <span className="font-bold text-emerald-800">
+            <p className="text-xs text-[#605955] mt-1 italic">{voiceDraft.spokenText}</p>
+            <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-[#F0D7CD] text-xs">
+              <span className="font-bold text-[#566E54]">
                 Detected: ₹{voiceDraft.amount} ({voiceDraft.category})
               </span>
               <div className="flex gap-1.5">
                 <button
                   type="button"
                   onClick={() => setVoiceDraft(null)}
-                  className="px-2 py-1 rounded-lg text-[11px] bg-slate-200 hover:bg-slate-300 font-medium"
+                  className="px-2.5 py-1 rounded-full text-[11px] bg-[#FAF7F2] hover:bg-[#F3EDE3] border border-[#EBE3D7] text-[#7C746F] font-medium"
                 >
                   Discard
                 </button>
                 <button
                   type="button"
                   onClick={applyVoiceDraft}
-                  className="px-2.5 py-1 rounded-lg text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                  className="px-3 py-1 rounded-full text-[11px] bg-[#566E54] hover:bg-[#425541] text-white font-bold shadow-pastel"
                 >
                   Confirm & Fill
                 </button>
@@ -153,18 +148,18 @@ export function AddSaleModal({ isOpen, onClose }) {
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           {/* Amount input */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
               {t.amount} (₹)
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-4 font-bold text-lg text-emerald-700">₹</span>
+              <span className="absolute left-4 font-serif font-bold text-lg text-[#566E54]">₹</span>
               <input
                 type="number"
                 step="any"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
-                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xl font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none"
+                className="w-full pl-9 pr-4 py-3 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl text-xl font-serif font-bold text-[#2D2825] focus:bg-white focus:border-[#6B8569] outline-none transition"
                 required
                 autoFocus
               />
@@ -177,7 +172,7 @@ export function AddSaleModal({ isOpen, onClose }) {
                   type="button"
                   key={q}
                   onClick={() => setAmount(prev => String(Number(prev || 0) + q))}
-                  className="px-2.5 py-1 text-xs rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 font-semibold text-slate-600 transition"
+                  className="px-3 py-1 text-xs rounded-full bg-[#FAF7F2] hover:bg-[#E9EFE8] hover:text-[#425541] border border-[#EBE3D7] font-semibold text-[#605955] transition touch-press"
                 >
                   +₹{q}
                 </button>
@@ -187,7 +182,7 @@ export function AddSaleModal({ isOpen, onClose }) {
 
           {/* Category selection */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1.5">
               {t.category}
             </label>
             <div className="grid grid-cols-3 gap-1.5">
@@ -198,10 +193,10 @@ export function AddSaleModal({ isOpen, onClose }) {
                     type="button"
                     key={c.id}
                     onClick={() => setCategory(c.id)}
-                    className={`py-2 px-1 text-center rounded-xl text-xs font-medium transition ${
+                    className={`py-2 px-1 text-center rounded-xl text-xs font-medium transition touch-press ${
                       isSelected
-                        ? 'bg-emerald-600 text-white shadow-soft font-semibold'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                        ? 'bg-[#566E54] text-white shadow-soft font-semibold'
+                        : 'bg-[#FAF7F2] hover:bg-[#F3EDE3] text-[#605955] border border-[#EBE3D7]'
                     }`}
                   >
                     {c.label}
@@ -213,16 +208,16 @@ export function AddSaleModal({ isOpen, onClose }) {
 
           {/* Date */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
               {t.date}
             </label>
             <div className="relative flex items-center">
-              <Calendar className="w-4 h-4 absolute left-3.5 text-slate-400" />
+              <Calendar className="w-4 h-4 absolute left-3.5 text-[#7C746F]" />
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-emerald-500 outline-none"
+                className="w-full pl-10 pr-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#6B8569] outline-none text-[#2D2825]"
                 required
               />
             </div>
@@ -230,7 +225,7 @@ export function AddSaleModal({ isOpen, onClose }) {
 
           {/* Note */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
               {t.note}
             </label>
             <input
@@ -238,7 +233,7 @@ export function AddSaleModal({ isOpen, onClose }) {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. Afternoon rush, UPI from Ramesh"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-emerald-500 outline-none"
+              className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#6B8569] outline-none text-[#2D2825]"
             />
           </div>
 
@@ -246,7 +241,7 @@ export function AddSaleModal({ isOpen, onClose }) {
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-pastel active:scale-98 transition flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-bold text-sm shadow-pastel active:scale-98 transition flex items-center justify-center gap-2 touch-press"
             >
               <Check className="w-4 h-4" />
               <span>{t.saveSale}</span>
@@ -288,42 +283,42 @@ export function AddExpenseModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-soft-lg">
+    <div className="fixed inset-0 z-50 bg-[#2D2825]/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-soft-lg border border-[#EBE3D7]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+        <div className="flex items-center justify-between pb-3 border-b border-[#F3EDE3]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#F8ECE6] text-[#BF745F] border border-[#F0D7CD] flex items-center justify-center font-bold">
               <TrendingDown className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="font-display font-bold text-base text-slate-900">{t.addExpense}</h2>
-              <p className="text-[11px] text-slate-500">Record money spent on stock, cart, or bills</p>
+              <h2 className="font-serif font-bold text-base text-[#2D2825]">{t.addExpense}</h2>
+              <p className="text-[11px] text-[#7C746F]">Record vendor spending & purchase costs</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-sm font-bold"
+            className="w-8 h-8 rounded-full bg-[#FAF7F2] text-[#7C746F] hover:bg-[#F3EDE3] border border-[#EBE3D7] flex items-center justify-center text-xs font-bold transition touch-press"
           >
             ✕
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          {/* Amount */}
+          {/* Amount input */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
               {t.amount} (₹)
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-4 font-bold text-lg text-rose-700">₹</span>
+              <span className="absolute left-4 font-serif font-bold text-lg text-[#BF745F]">₹</span>
               <input
                 type="number"
                 step="any"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
-                className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xl font-bold text-slate-900 focus:bg-white focus:border-rose-500 outline-none"
+                className="w-full pl-9 pr-4 py-3 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl text-xl font-serif font-bold text-[#2D2825] focus:bg-white focus:border-[#BF745F] outline-none transition"
                 required
                 autoFocus
               />
@@ -336,7 +331,7 @@ export function AddExpenseModal({ isOpen, onClose }) {
                   type="button"
                   key={q}
                   onClick={() => setAmount(prev => String(Number(prev || 0) + q))}
-                  className="px-2.5 py-1 text-xs rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-800 font-semibold text-slate-600 transition"
+                  className="px-3 py-1 text-xs rounded-full bg-[#FAF7F2] hover:bg-[#F8ECE6] hover:text-[#874937] border border-[#EBE3D7] font-semibold text-[#605955] transition touch-press"
                 >
                   +₹{q}
                 </button>
@@ -344,12 +339,12 @@ export function AddExpenseModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Category */}
+          {/* Category selection */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1.5">
               {t.category}
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
               {categories.map((c) => {
                 const isSelected = category === c.id;
                 return (
@@ -357,10 +352,10 @@ export function AddExpenseModal({ isOpen, onClose }) {
                     type="button"
                     key={c.id}
                     onClick={() => setCategory(c.id)}
-                    className={`py-2 px-1.5 text-center rounded-xl text-xs font-medium transition ${
+                    className={`py-2 px-1 text-center rounded-xl text-xs font-medium transition touch-press ${
                       isSelected
-                        ? 'bg-rose-600 text-white shadow-soft font-semibold'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                        ? 'bg-[#BF745F] text-white shadow-soft font-semibold'
+                        : 'bg-[#FAF7F2] hover:bg-[#F3EDE3] text-[#605955] border border-[#EBE3D7]'
                     }`}
                   >
                     {c.label}
@@ -372,16 +367,16 @@ export function AddExpenseModal({ isOpen, onClose }) {
 
           {/* Date */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
               {t.date}
             </label>
             <div className="relative flex items-center">
-              <Calendar className="w-4 h-4 absolute left-3.5 text-slate-400" />
+              <Calendar className="w-4 h-4 absolute left-3.5 text-[#7C746F]" />
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-rose-500 outline-none"
+                className="w-full pl-10 pr-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#BF745F] outline-none text-[#2D2825]"
                 required
               />
             </div>
@@ -389,15 +384,15 @@ export function AddExpenseModal({ isOpen, onClose }) {
 
           {/* Note */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
               {t.note}
             </label>
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Mandi diesel auto, ginger crate"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-rose-500 outline-none"
+              placeholder="e.g. Mandi vegetable crate, tempo auto fair"
+              className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#BF745F] outline-none text-[#2D2825]"
             />
           </div>
 
@@ -405,7 +400,7 @@ export function AddExpenseModal({ isOpen, onClose }) {
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full py-3.5 px-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-soft active:scale-98 transition flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 rounded-full bg-[#BF745F] hover:bg-[#A65E4A] text-white font-bold text-sm shadow-pastel-terracotta active:scale-98 transition flex items-center justify-center gap-2 touch-press"
             >
               <Check className="w-4 h-4" />
               <span>{t.saveExpense}</span>
@@ -419,7 +414,8 @@ export function AddExpenseModal({ isOpen, onClose }) {
 
 export function AddLoanModal({ isOpen, onClose }) {
   const { t, addLoan } = useApp();
-  const [formData, setFormData] = useState({
+
+  const [formData, setFormData] = useState(() => ({
     name: '',
     lender: '',
     amount: '',
@@ -428,22 +424,22 @@ export function AddLoanModal({ isOpen, onClose }) {
     firstDueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
     finalDueDate: '',
     notes: ''
-  });
+  }));
 
   if (!isOpen) return null;
 
   const loanAmountNum = Number(formData.amount || 0);
-  const repaymentAmountNum = Number(formData.repaymentAmount || (loanAmountNum ? Math.round(loanAmountNum / 20) : 0));
+  const repayAmountNum = Number(formData.repaymentAmount || (loanAmountNum ? Math.round(loanAmountNum / 30) : 0));
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!loanAmountNum || loanAmountNum <= 0) return;
 
     addLoan({
-      name: formData.name || 'Vendor Microloan',
-      lender: formData.lender || 'Local Lender',
-      amount: loanAmountNum,
-      repaymentAmount: repaymentAmountNum,
+      name: formData.name || 'Microcredit Account',
+      lender: formData.lender || 'Local Bank',
+      originalAmount: loanAmountNum,
+      repaymentAmount: repayAmountNum || 500,
       frequency: formData.frequency,
       firstDueDate: formData.firstDueDate,
       finalDueDate: formData.finalDueDate,
@@ -454,22 +450,22 @@ export function AddLoanModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-soft-lg">
+    <div className="fixed inset-0 z-50 bg-[#2D2825]/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-soft-lg border border-[#EBE3D7]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+        <div className="flex items-center justify-between pb-3 border-b border-[#F3EDE3]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#F2F0F8] text-[#554C78] border border-[#E3DFEF] flex items-center justify-center font-bold">
               <Landmark className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="font-display font-bold text-base text-slate-900">{t.addLoan}</h2>
-              <p className="text-[11px] text-slate-500">Add microcredit or wholesale supplier advance</p>
+              <h2 className="font-serif font-bold text-base text-[#2D2825]">{t.addLoan}</h2>
+              <p className="text-[11px] text-[#7C746F]">Add microcredit or wholesale supplier advance</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-sm font-bold"
+            className="w-8 h-8 rounded-full bg-[#FAF7F2] text-[#7C746F] hover:bg-[#F3EDE3] border border-[#EBE3D7] flex items-center justify-center text-xs font-bold transition touch-press"
           >
             ✕
           </button>
@@ -477,7 +473,7 @@ export function AddLoanModal({ isOpen, onClose }) {
 
         <form onSubmit={handleSubmit} className="space-y-3.5 mt-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
               Loan / Scheme Name
             </label>
             <input
@@ -485,13 +481,13 @@ export function AddLoanModal({ isOpen, onClose }) {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g. PM SVANidhi Loan, Mandi Credit"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-indigo-500 outline-none"
+              className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#554C78] outline-none text-[#2D2825]"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
               {t.lender}
             </label>
             <input
@@ -499,23 +495,23 @@ export function AddLoanModal({ isOpen, onClose }) {
               value={formData.lender}
               onChange={(e) => setFormData({ ...formData, lender: e.target.value })}
               placeholder="e.g. SBI Bank, Murthy Wholesaler, SHG"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-indigo-500 outline-none"
+              className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#554C78] outline-none text-[#2D2825]"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
               {t.originalLoan} (₹)
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3.5 font-bold text-slate-500">₹</span>
+              <span className="absolute left-3.5 font-serif font-bold text-[#7C746F]">₹</span>
               <input
                 type="number"
                 value={formData.amount}
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                 placeholder="e.g. 20000"
-                className="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none"
+                className="w-full pl-8 pr-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-sm font-serif font-bold text-[#2D2825] focus:bg-white focus:border-[#554C78] outline-none"
                 required
               />
             </div>
@@ -523,7 +519,7 @@ export function AddLoanModal({ isOpen, onClose }) {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-[#48433F] mb-1">
                 Repayment Amount (₹)
               </label>
               <input
@@ -531,17 +527,17 @@ export function AddLoanModal({ isOpen, onClose }) {
                 value={formData.repaymentAmount}
                 onChange={(e) => setFormData({ ...formData, repaymentAmount: e.target.value })}
                 placeholder="e.g. 1000"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-indigo-500 outline-none"
+                className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#554C78] outline-none text-[#2D2825]"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-[#48433F] mb-1">
                 {t.repaymentFrequency}
               </label>
               <select
                 value={formData.frequency}
                 onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-indigo-500 outline-none"
+                className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#554C78] outline-none text-[#2D2825]"
               >
                 <option value="Daily">{t.daily}</option>
                 <option value="Weekly">{t.weekly}</option>
@@ -552,31 +548,31 @@ export function AddLoanModal({ isOpen, onClose }) {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-[#48433F] mb-1">
                 {t.firstDueDate}
               </label>
               <input
                 type="date"
                 value={formData.firstDueDate}
                 onChange={(e) => setFormData({ ...formData, firstDueDate: e.target.value })}
-                className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-indigo-500 outline-none"
+                className="w-full px-2 py-2 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#554C78] outline-none text-[#2D2825]"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-[#48433F] mb-1">
                 {t.finalDueDate} (Optional)
               </label>
               <input
                 type="date"
                 value={formData.finalDueDate}
                 onChange={(e) => setFormData({ ...formData, finalDueDate: e.target.value })}
-                className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-indigo-500 outline-none"
+                className="w-full px-2 py-2 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#554C78] outline-none text-[#2D2825]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
               {t.notes}
             </label>
             <input
@@ -584,27 +580,27 @@ export function AddLoanModal({ isOpen, onClose }) {
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               placeholder="e.g. 7% subsidized interest rate"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-indigo-500 outline-none"
+              className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#554C78] outline-none text-[#2D2825]"
             />
           </div>
 
-          {/* Live Summary Card as required by item 7 */}
-          <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-2xl">
-            <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wide">
+          {/* Live Summary Card */}
+          <div className="p-3.5 bg-[#F2F0F8]/80 border border-[#E3DFEF] rounded-2xl">
+            <span className="text-[11px] font-bold text-[#554C78] uppercase tracking-wide">
               Live Summary
             </span>
             <div className="grid grid-cols-3 gap-2 mt-1.5 text-center">
-              <div className="bg-white/80 p-2 rounded-xl">
-                <span className="text-[10px] text-slate-500 block">Loan amount</span>
-                <span className="text-xs font-bold text-slate-900">₹{loanAmountNum.toLocaleString()}</span>
+              <div className="bg-white/90 p-2 rounded-xl border border-[#E3DFEF]/60">
+                <span className="text-[10px] text-[#7C746F] block">Loan amount</span>
+                <span className="text-xs font-bold text-[#2D2825]">₹{loanAmountNum.toLocaleString()}</span>
               </div>
-              <div className="bg-white/80 p-2 rounded-xl">
-                <span className="text-[10px] text-slate-500 block">Already repaid</span>
-                <span className="text-xs font-bold text-emerald-700">₹0</span>
+              <div className="bg-white/90 p-2 rounded-xl border border-[#E3DFEF]/60">
+                <span className="text-[10px] text-[#7C746F] block">Already repaid</span>
+                <span className="text-xs font-bold text-[#566E54]">₹0</span>
               </div>
-              <div className="bg-white/80 p-2 rounded-xl">
-                <span className="text-[10px] text-slate-500 block">Remaining</span>
-                <span className="text-xs font-bold text-indigo-700">₹{loanAmountNum.toLocaleString()}</span>
+              <div className="bg-white/90 p-2 rounded-xl border border-[#E3DFEF]/60">
+                <span className="text-[10px] text-[#7C746F] block">Remaining</span>
+                <span className="text-xs font-bold text-[#554C78]">₹{loanAmountNum.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -613,7 +609,7 @@ export function AddLoanModal({ isOpen, onClose }) {
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full py-3.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-soft active:scale-98 transition flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 rounded-full bg-[#554C78] hover:bg-[#3F3760] text-white font-bold text-sm shadow-soft active:scale-98 transition flex items-center justify-center gap-2 touch-press"
             >
               <Check className="w-4 h-4" />
               <span>Save Microloan</span>
@@ -666,22 +662,22 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-soft-lg">
+    <div className="fixed inset-0 z-50 bg-[#2D2825]/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-soft-lg border border-[#EBE3D7]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+        <div className="flex items-center justify-between pb-3 border-b border-[#F3EDE3]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#F8ECE6] text-[#BF745F] border border-[#F0D7CD] flex items-center justify-center font-bold">
               <CreditCard className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="font-display font-bold text-base text-slate-900">{t.addRepayment}</h2>
-              <p className="text-[11px] text-slate-500">Record loan instalment payment</p>
+              <h2 className="font-serif font-bold text-base text-[#2D2825]">{t.addRepayment}</h2>
+              <p className="text-[11px] text-[#7C746F]">Record loan instalment payment</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-sm font-bold"
+            className="w-8 h-8 rounded-full bg-[#FAF7F2] text-[#7C746F] hover:bg-[#F3EDE3] border border-[#EBE3D7] flex items-center justify-center text-xs font-bold transition touch-press"
           >
             ✕
           </button>
@@ -690,28 +686,28 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
         {/* Confirmation State */}
         {showConfirm ? (
           <div className="py-4 space-y-4 text-center animate-in fade-in">
-            <div className="w-14 h-14 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center mx-auto">
+            <div className="w-14 h-14 bg-[#E9EFE8] text-[#566E54] border border-[#D3DFD2] rounded-full flex items-center justify-center mx-auto shadow-soft">
               <Check className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="font-display font-bold text-lg text-slate-900">
+              <h3 className="font-serif font-bold text-lg text-[#2D2825]">
                 Confirm Repayment of ₹{repayAmountNum.toLocaleString()}?
               </h3>
-              <p className="text-xs text-slate-600 mt-1">
+              <p className="text-xs text-[#7C746F] mt-1">
                 Towards: <strong>{currentLoan?.name}</strong> ({currentLoan?.lender})
               </p>
             </div>
 
-            <div className="bg-slate-50 p-3 rounded-2xl text-xs space-y-1 text-left border border-slate-200">
-              <div className="flex justify-between text-slate-600">
+            <div className="bg-[#FAF7F2] p-3.5 rounded-2xl text-xs space-y-1.5 text-left border border-[#EBE3D7]">
+              <div className="flex justify-between text-[#7C746F]">
                 <span>Current Balance:</span>
-                <span className="font-semibold">₹{currentLoan?.remainingAmount.toLocaleString()}</span>
+                <span className="font-semibold text-[#2D2825]">₹{currentLoan?.remainingAmount.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-emerald-700 font-bold">
+              <div className="flex justify-between text-[#566E54] font-bold">
                 <span>Payment Amount:</span>
                 <span>-₹{repayAmountNum.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-slate-900 font-bold border-t border-slate-200 pt-1">
+              <div className="flex justify-between text-[#2D2825] font-bold border-t border-[#EBE3D7] pt-1.5">
                 <span>Remaining After:</span>
                 <span>₹{remainingAfterPayment.toLocaleString()}</span>
               </div>
@@ -721,14 +717,14 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
               <button
                 type="button"
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                className="flex-1 py-3 rounded-full border border-[#EBE3D7] text-xs font-semibold text-[#7C746F] hover:bg-[#FAF7F2] transition"
               >
                 Go Back
               </button>
               <button
                 type="button"
                 onClick={handleConfirmedPayment}
-                className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white shadow-soft"
+                className="flex-1 py-3 rounded-full bg-[#566E54] hover:bg-[#425541] text-xs font-bold text-white shadow-pastel transition"
               >
                 Confirm & Record
               </button>
@@ -738,13 +734,13 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
           <form onSubmit={handlePreSubmit} className="space-y-4 mt-4">
             {/* Loan selector */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-[#48433F] mb-1">
                 Select Loan
               </label>
               <select
                 value={selectedLoanId}
                 onChange={(e) => setSelectedLoanId(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:border-amber-500 outline-none"
+                className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-semibold text-[#2D2825] focus:bg-white focus:border-[#BF745F] outline-none"
               >
                 {activeLoans.map((l) => (
                   <option key={l.id} value={l.id}>
@@ -756,24 +752,24 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
 
             {/* Repayment Amount */}
             <div>
-              <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+              <div className="flex justify-between text-xs font-semibold text-[#48433F] mb-1">
                 <span>{t.amount} (₹)</span>
                 {currentLoan && (
-                  <span className="text-slate-500">
+                  <span className="text-[#7C746F]">
                     Instalment: ₹{currentLoan.repaymentAmount}
                   </span>
                 )}
               </div>
               <div className="relative flex items-center">
-                <span className="absolute left-4 font-bold text-lg text-amber-700">₹</span>
+                <span className="absolute left-4 font-serif font-bold text-lg text-[#BF745F]">₹</span>
                 <input
                   type="number"
                   step="any"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder={currentLoan ? String(currentLoan.repaymentAmount) : "0"}
-                  className={`w-full pl-9 pr-4 py-3 bg-slate-50 border rounded-2xl text-xl font-bold text-slate-900 focus:bg-white outline-none ${
-                    isOverpaying ? 'border-rose-500 focus:border-rose-600' : 'border-slate-200 focus:border-amber-500'
+                  className={`w-full pl-9 pr-4 py-3 bg-[#FAF7F2] border rounded-2xl text-xl font-serif font-bold text-[#2D2825] focus:bg-white outline-none transition ${
+                    isOverpaying ? 'border-[#D994A0] focus:border-[#C57180]' : 'border-[#EBE3D7] focus:border-[#BF745F]'
                   }`}
                   required
                   autoFocus
@@ -781,20 +777,20 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
               </div>
 
               {isOverpaying && (
-                <p className="text-[11px] text-rose-600 font-semibold mt-1.5 flex items-center gap-1">
+                <p className="text-[11px] text-[#C57180] font-semibold mt-1.5 flex items-center gap-1">
                   <ShieldAlert className="w-3.5 h-3.5" />
                   {t.overpaymentWarning}
                 </p>
               )}
             </div>
 
-            {/* Live calculation banner (Item 9 requirement) */}
+            {/* Live calculation banner */}
             {currentLoan && (
-              <div className="p-3 bg-pastel-mint rounded-2xl border border-emerald-200 text-xs">
-                <span className="font-semibold text-emerald-900 block">
+              <div className="p-3 bg-[#E9EFE8] rounded-2xl border border-[#D3DFD2] text-xs">
+                <span className="font-semibold text-[#425541] block">
                   Loan remaining after this payment:
                 </span>
-                <span className="font-display font-extrabold text-base text-emerald-800">
+                <span className="font-serif font-bold text-base text-[#314030]">
                   ₹{remainingAfterPayment.toLocaleString()}
                 </span>
               </div>
@@ -802,7 +798,7 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
 
             {/* Payment Method */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-semibold text-[#48433F] mb-1.5">
                 Payment Method
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -811,10 +807,10 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
                     type="button"
                     key={m}
                     onClick={() => setMethod(m)}
-                    className={`py-2 px-1 text-center rounded-xl text-xs font-medium transition ${
+                    className={`py-2 px-1 text-center rounded-xl text-xs font-medium transition touch-press ${
                       method === m
-                        ? 'bg-amber-600 text-white font-bold shadow-soft'
-                        : 'bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100'
+                        ? 'bg-[#BF745F] text-white font-bold shadow-soft'
+                        : 'bg-[#FAF7F2] text-[#605955] border border-[#EBE3D7] hover:bg-[#F3EDE3]'
                     }`}
                   >
                     {m}
@@ -825,21 +821,21 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
 
             {/* Date */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-[#48433F] mb-1">
                 {t.date}
               </label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-amber-500 outline-none"
+                className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#BF745F] outline-none text-[#2D2825]"
                 required
               />
             </div>
 
             {/* Note */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-[#48433F] mb-1">
                 {t.note}
               </label>
               <input
@@ -847,7 +843,7 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="e.g. PhonePe receipt #9842"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-amber-500 outline-none"
+                className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#BF745F] outline-none text-[#2D2825]"
               />
             </div>
 
@@ -856,7 +852,7 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
               <button
                 type="submit"
                 disabled={isOverpaying}
-                className="w-full py-3.5 px-4 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-soft active:scale-98 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3.5 px-4 rounded-full bg-[#BF745F] hover:bg-[#A65E4A] text-white font-bold text-sm shadow-pastel-terracotta active:scale-98 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed touch-press"
               >
                 <Check className="w-4 h-4" />
                 <span>Review & Save Repayment</span>

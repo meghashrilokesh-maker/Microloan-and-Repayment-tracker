@@ -3,14 +3,10 @@ import {
   Landmark, 
   Plus, 
   ChevronRight, 
-  Calendar, 
   Clock, 
   CheckCircle2, 
-  AlertTriangle, 
-  Check, 
   ArrowLeft,
-  Receipt,
-  FileSpreadsheet
+  Receipt
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import NaturalVendorImage from '../components/NaturalVendorImage';
@@ -49,56 +45,56 @@ export default function LoansScreen() {
         <div className="flex items-center justify-between">
           <button
             onClick={() => setSelectedLoanId(null)}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm"
+            className="flex items-center gap-1.5 text-xs font-bold text-[#48433F] hover:text-[#2D2825] bg-white px-3.5 py-2 rounded-full border border-[#EBE3D7] shadow-soft transition touch-press"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to All Loans</span>
           </button>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+          <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
             selectedLoan.status === 'Completed' 
-              ? 'bg-emerald-100 text-emerald-800' 
-              : 'bg-indigo-100 text-indigo-800'
+              ? 'bg-[#E9EFE8] text-[#425541] border-[#D3DFD2]' 
+              : 'bg-[#F2F0F8] text-[#554C78] border-[#E3DFEF]'
           }`}>
             {selectedLoan.status}
           </span>
         </div>
 
         {/* Hero Card for Loan */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-soft space-y-4">
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#EBE3D7] shadow-soft space-y-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <span className="text-[10px] font-bold tracking-wider text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded-md">
+              <span className="text-[10px] font-bold tracking-wider text-[#554C78] uppercase bg-[#F2F0F8] px-2.5 py-0.5 rounded-full border border-[#E3DFEF]">
                 Microloan Account
               </span>
-              <h2 className="font-display font-bold text-xl text-slate-900 mt-1">
+              <h2 className="font-serif font-bold text-xl text-[#2D2825] mt-1.5">
                 {selectedLoan.name}
               </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                {t.lender}: <span className="text-slate-700 font-semibold">{selectedLoan.lender}</span>
+              <p className="text-xs text-[#7C746F] font-medium">
+                {t.lender}: <span className="text-[#383330] font-semibold">{selectedLoan.lender}</span>
               </p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-700 shrink-0">
-              <Landmark className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-2xl bg-[#F2F0F8] border border-[#E3DFEF] flex items-center justify-center text-[#554C78] shrink-0 shadow-soft">
+              <Landmark className="w-5 h-5" />
             </div>
           </div>
 
           {/* Amount Balance Numbers */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2">
-            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-              <span className="text-[11px] text-slate-500 block">{t.originalLoan}</span>
-              <span className="text-base font-display font-bold text-slate-900">
+            <div className="bg-[#FAF7F2] p-3 rounded-2xl border border-[#EBE3D7]">
+              <span className="text-[11px] text-[#7C746F] block">{t.originalLoan}</span>
+              <span className="text-base font-serif font-bold text-[#2D2825]">
                 ₹{selectedLoan.originalAmount.toLocaleString()}
               </span>
             </div>
-            <div className="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-100">
-              <span className="text-[11px] text-emerald-800 block">{t.repaidSoFar}</span>
-              <span className="text-base font-display font-bold text-emerald-700">
+            <div className="bg-[#E9EFE8]/80 p-3 rounded-2xl border border-[#D3DFD2]">
+              <span className="text-[11px] text-[#425541] block">{t.repaidSoFar}</span>
+              <span className="text-base font-serif font-bold text-[#314030]">
                 ₹{selectedLoan.totalRepaid.toLocaleString()}
               </span>
             </div>
-            <div className="bg-indigo-50/80 p-3 rounded-2xl border border-indigo-100 col-span-2 sm:col-span-1">
-              <span className="text-[11px] text-indigo-800 block">{t.remaining}</span>
-              <span className="text-lg font-display font-extrabold text-indigo-900">
+            <div className="bg-[#F2F0F8]/80 p-3 rounded-2xl border border-[#E3DFEF] col-span-2 sm:col-span-1">
+              <span className="text-[11px] text-[#554C78] block">{t.remaining}</span>
+              <span className="text-lg font-serif font-bold text-[#3F3760]">
                 ₹{selectedLoan.remainingAmount.toLocaleString()}
               </span>
             </div>
@@ -106,36 +102,36 @@ export default function LoansScreen() {
 
           {/* Progress Bar */}
           <div>
-            <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1.5">
+            <div className="flex justify-between text-xs font-semibold text-[#7C746F] mb-1.5">
               <span>Repayment Progress</span>
               <span>{progressPercent}% Complete</span>
             </div>
-            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+            <div className="w-full h-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-[#6B8569] to-[#8EAA8C] rounded-full transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
           </div>
 
           {/* Schedule Info */}
-          <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+          <div className="grid grid-cols-2 gap-3 text-xs bg-[#FAF7F2] p-3.5 rounded-2xl border border-[#EBE3D7]">
             <div>
-              <span className="text-slate-500 block">{t.nextRepayment}:</span>
-              <span className="font-bold text-slate-800">
+              <span className="text-[#7C746F] block">{t.nextRepayment}:</span>
+              <span className="font-bold text-[#2D2825]">
                 ₹{selectedLoan.repaymentAmount} ({selectedLoan.frequency})
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block">Due Date:</span>
-              <span className="font-bold text-amber-700">
+              <span className="text-[#7C746F] block">Due Date:</span>
+              <span className="font-bold text-[#BF745F]">
                 {selectedLoan.nextDueDate || 'Upcoming'}
               </span>
             </div>
           </div>
 
           {selectedLoan.notes && (
-            <p className="text-xs text-slate-500 bg-amber-50/50 p-2.5 rounded-xl border border-amber-100/50">
+            <p className="text-xs text-[#7C746F] bg-[#FAF3EA] p-3 rounded-2xl border border-[#EAE1D4]">
               📝 {selectedLoan.notes}
             </p>
           )}
@@ -147,50 +143,50 @@ export default function LoansScreen() {
                 setRepayTargetLoanId(selectedLoan.id);
                 setAddRepayOpen(true);
               }}
-              className="w-full py-3.5 px-4 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-soft transition active:scale-98 flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 rounded-full bg-[#BF745F] hover:bg-[#A65E4A] text-white font-bold text-sm shadow-pastel-terracotta transition touch-press flex items-center justify-center gap-2"
             >
               <span>+ {t.addRepayment}</span>
             </button>
           ) : (
-            <div className="p-3 bg-emerald-100 text-emerald-800 text-xs font-bold text-center rounded-2xl flex items-center justify-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4" />
+            <div className="p-3 bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2] text-xs font-bold text-center rounded-2xl flex items-center justify-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-[#6B8569]" />
               <span>Congratulations! This loan is 100% repaid.</span>
             </div>
           )}
         </div>
 
         {/* Repayment History Section */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-soft">
+        <div className="bg-white rounded-3xl p-5 border border-[#EBE3D7] shadow-soft">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display font-bold text-base text-slate-900 flex items-center gap-1.5">
-              <Receipt className="w-4 h-4 text-slate-500" />
+            <h3 className="font-serif font-bold text-base text-[#2D2825] flex items-center gap-1.5">
+              <Receipt className="w-4 h-4 text-[#7C746F]" />
               <span>{t.repaymentHistory}</span>
             </h3>
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-[#7C746F]">
               {selectedLoan.repayments?.length || 0} payments
             </span>
           </div>
 
           {selectedLoan.repayments && selectedLoan.repayments.length > 0 ? (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-[#F3EDE3]">
               {selectedLoan.repayments.map((rep) => (
                 <div key={rep.id} className="py-2.5 flex items-center justify-between text-xs">
                   <div>
-                    <div className="font-bold text-slate-800">
+                    <div className="font-bold text-[#2D2825]">
                       Paid via {rep.method}
                     </div>
-                    <div className="text-[11px] text-slate-400">
+                    <div className="text-[11px] text-[#8E8681]">
                       {rep.date} • {rep.note || 'Instalment'}
                     </div>
                   </div>
-                  <span className="font-display font-extrabold text-sm text-emerald-700">
+                  <span className="font-serif font-bold text-sm text-[#566E54]">
                     -₹{rep.amount.toLocaleString()}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-400 py-3 text-center">
+            <p className="text-xs text-[#9A938E] py-3 text-center">
               No repayments logged yet.
             </p>
           )}
@@ -207,40 +203,47 @@ export default function LoansScreen() {
 
   // Normal All Loans List View:
   return (
-    <div className="space-y-4">
-      {/* Header Banner with Farmer / Worker picture */}
-      <div className="bg-gradient-to-r from-indigo-50 via-white to-amber-50 rounded-3xl p-4 sm:p-5 border border-indigo-100 shadow-soft flex items-center justify-between gap-3">
-        <div>
-          <span className="text-[10px] font-bold tracking-wider text-indigo-700 uppercase bg-indigo-100/70 px-2 py-0.5 rounded-md">
+    <div className="space-y-4 animate-in fade-in">
+      {/* Header Banner with 2D Indian Farmer illustration seamlessly integrated */}
+      <div className="relative overflow-hidden bg-[#F8F2EC] rounded-3xl p-5 border border-[#EAE1D4] shadow-soft flex items-center justify-between gap-3">
+        <div className="absolute top-0 right-12 w-32 h-44 bg-[#F2DDD4]/60 rounded-b-full pointer-events-none -z-0" />
+        <div className="absolute -bottom-6 right-2 w-28 h-28 bg-[#EAF0E9]/60 rounded-full pointer-events-none -z-0" />
+
+        <div className="z-10">
+          <span className="text-[10px] font-bold tracking-wider text-[#874937] uppercase bg-[#F8ECE6] px-2.5 py-0.5 rounded-full border border-[#F0D7CD]">
             Vendor Microloans
           </span>
-          <h1 className="font-display font-bold text-xl sm:text-2xl text-slate-900 mt-1">
+          <h1 className="font-serif font-bold text-xl sm:text-2xl text-[#2D2825] mt-1.5">
             {t.myLoans}
           </h1>
-          <p className="text-xs text-slate-600 font-medium mt-0.5">
-            {t.loanSummaryTitle}: <strong className="text-indigo-900 text-sm">₹{totalLoanRemaining.toLocaleString()}</strong>
+          <p className="text-xs text-[#7C746F] font-medium mt-0.5">
+            {t.loanSummaryTitle}: <strong className="text-[#BF745F] text-sm">₹{totalLoanRemaining.toLocaleString()}</strong>
           </p>
         </div>
-        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-white/70 p-1 shrink-0 flex items-center justify-center border border-indigo-100">
-          <img 
-            src="/images/vendor-farmer.jpg" 
-            alt="Microloan Support" 
-            className="w-full h-full object-contain vendor-photo-blend"
+
+        <div className="relative shrink-0 z-10">
+          <NaturalVendorImage 
+            type="farmer"
+            size="md"
+            backdrop="arch"
+            backdropColor="terracotta"
+            showBotanical={true}
+            alt="Microloan Support"
           />
         </div>
       </div>
 
       {/* Filter Tabs & Add Loan Button */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm text-xs font-semibold">
+        <div className="flex bg-white p-1 rounded-full border border-[#EBE3D7] shadow-soft text-xs font-semibold">
           {['Active', 'Completed', 'Overdue'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveFilter(tab)}
-              className={`px-3 py-1.5 rounded-xl transition ${
+              className={`px-3.5 py-1.5 rounded-full transition-all duration-200 touch-press ${
                 activeFilter === tab
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#566E54] text-white shadow-soft'
+                  : 'text-[#7C746F] hover:text-[#2D2825]'
               }`}
             >
               {tab === 'Active' ? t.tabActive : tab === 'Completed' ? t.tabCompleted : t.tabOverdue}
@@ -250,7 +253,7 @@ export default function LoansScreen() {
 
         <button
           onClick={() => setAddLoanOpen(true)}
-          className="flex items-center gap-1.5 py-2 px-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-soft transition active:scale-95"
+          className="flex items-center gap-1.5 py-2 px-4 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-bold text-xs shadow-pastel transition active:scale-95 touch-press"
         >
           <Plus className="w-4 h-4" />
           <span>{t.addLoan}</span>
@@ -266,65 +269,65 @@ export default function LoansScreen() {
               <div
                 key={loan.id}
                 onClick={() => setSelectedLoanId(loan.id)}
-                className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-soft hover:shadow-md transition cursor-pointer group space-y-3 touch-press"
+                className="bg-white rounded-3xl p-5 border border-[#EBE3D7] shadow-soft hover:shadow-soft-md transition cursor-pointer group space-y-3.5 touch-press"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-display font-bold text-base text-slate-900 group-hover:text-indigo-600 transition">
+                    <h3 className="font-serif font-bold text-base text-[#2D2825] group-hover:text-[#566E54] transition">
                       {loan.name}
                     </h3>
-                    <p className="text-xs text-slate-500">
-                      {t.lender}: <span className="font-medium text-slate-700">{loan.lender}</span>
+                    <p className="text-xs text-[#7C746F]">
+                      {t.lender}: <span className="font-medium text-[#383330]">{loan.lender}</span>
                     </p>
                   </div>
-                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
                     loan.status === 'Completed'
-                      ? 'bg-emerald-100 text-emerald-800'
+                      ? 'bg-[#E9EFE8] text-[#425541] border-[#D3DFD2]'
                       : loan.status === 'Overdue'
-                      ? 'bg-rose-100 text-rose-800'
-                      : 'bg-indigo-100 text-indigo-800'
+                      ? 'bg-[#FAEEF0] text-[#8A3846] border-[#F4DBDF]'
+                      : 'bg-[#F2F0F8] text-[#554C78] border-[#E3DFEF]'
                   }`}>
                     {loan.status}
                   </span>
                 </div>
 
                 {/* Numbers Grid */}
-                <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-2xl text-center text-xs">
+                <div className="grid grid-cols-3 gap-2 bg-[#FAF7F2] p-3 rounded-2xl border border-[#EBE3D7] text-center text-xs">
                   <div>
-                    <span className="text-[10px] text-slate-500 block">{t.originalLoan}</span>
-                    <span className="font-bold text-slate-800">₹{loan.originalAmount.toLocaleString()}</span>
+                    <span className="text-[10px] text-[#7C746F] block">{t.originalLoan}</span>
+                    <span className="font-bold text-[#2D2825]">₹{loan.originalAmount.toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-500 block">{t.repaidSoFar}</span>
-                    <span className="font-bold text-emerald-700">₹{loan.totalRepaid.toLocaleString()}</span>
+                    <span className="text-[10px] text-[#425541] block">{t.repaidSoFar}</span>
+                    <span className="font-bold text-[#566E54]">₹{loan.totalRepaid.toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-500 block">{t.remaining}</span>
-                    <span className="font-bold text-indigo-900">₹{loan.remainingAmount.toLocaleString()}</span>
+                    <span className="text-[10px] text-[#554C78] block">{t.remaining}</span>
+                    <span className="font-bold text-[#3F3760]">₹{loan.remainingAmount.toLocaleString()}</span>
                   </div>
                 </div>
 
                 {/* Progress bar */}
                 <div>
-                  <div className="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
+                  <div className="flex justify-between text-[11px] font-semibold text-[#7C746F] mb-1">
                     <span>{progress}% Repaid</span>
                     <span>Next: ₹{loan.repaymentAmount} ({loan.frequency})</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-[#FAF7F2] border border-[#EBE3D7] rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-indigo-500 rounded-full"
+                      className="h-full bg-gradient-to-r from-[#6B8569] to-[#8EAA8C] rounded-full transition-all duration-500"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
                 </div>
 
                 {/* Footer with due info & Arrow */}
-                <div className="flex items-center justify-between text-xs pt-1 text-slate-500">
-                  <span className="flex items-center gap-1 text-[11px]">
-                    <Clock className="w-3.5 h-3.5 text-amber-600" />
-                    Due: <strong className="text-slate-700">{loan.nextDueDate || 'Upcoming'}</strong>
+                <div className="flex items-center justify-between text-xs pt-1 text-[#7C746F]">
+                  <span className="flex items-center gap-1.5 text-[11px]">
+                    <Clock className="w-3.5 h-3.5 text-[#BF745F]" />
+                    Due: <strong className="text-[#383330]">{loan.nextDueDate || 'Upcoming'}</strong>
                   </span>
-                  <span className="text-xs font-bold text-indigo-600 group-hover:translate-x-1 transition flex items-center gap-0.5">
+                  <span className="text-xs font-bold text-[#566E54] group-hover:translate-x-0.5 transition flex items-center gap-0.5">
                     View Details <ChevronRight className="w-3.5 h-3.5" />
                   </span>
                 </div>
@@ -333,24 +336,26 @@ export default function LoansScreen() {
           })}
         </div>
       ) : (
-        /* Empty State as required by item 20 */
-        <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-soft text-center space-y-3">
-          <div className="w-24 h-24 rounded-full bg-indigo-50 mx-auto flex items-center justify-center p-2">
-            <img 
-              src="/images/vendor-farmer.jpg" 
-              alt="No loans" 
-              className="w-full h-full object-contain vendor-photo-blend"
+        /* Empty State */
+        <div className="bg-white rounded-3xl p-8 border border-[#EBE3D7] shadow-soft text-center space-y-3.5">
+          <div className="relative mx-auto flex items-center justify-center">
+            <NaturalVendorImage 
+              type="farmer"
+              size="lg"
+              backdrop="blob"
+              backdropColor="sage"
+              alt="No loans"
             />
           </div>
-          <h3 className="font-display font-bold text-lg text-slate-900">
+          <h3 className="font-serif font-bold text-lg text-[#2D2825]">
             {t.noLoansRecorded}
           </h3>
-          <p className="text-xs text-slate-500 max-w-xs mx-auto">
+          <p className="text-xs text-[#7C746F] max-w-xs mx-auto">
             {t.addLoanPrompt}
           </p>
           <button
             onClick={() => setAddLoanOpen(true)}
-            className="py-2.5 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-soft transition"
+            className="py-2.5 px-6 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-bold text-xs shadow-pastel transition touch-press"
           >
             + {t.addLoan}
           </button>
