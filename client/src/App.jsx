@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { TopHeader, BottomNav } from './components/Navigation';
-import { SplashScreen, OnboardingFlow, AuthScreen } from './components/OnboardingAndAuth';
+import { LandingScreen, AuthScreen } from './components/OnboardingAndAuth';
 import DashboardScreen from './screens/DashboardScreen';
 import SalesScreen from './screens/SalesScreen';
 import ExpensesScreen from './screens/ExpensesScreen';
@@ -13,12 +13,12 @@ import { CheckCircle2 } from 'lucide-react';
 function AppContent() {
   const { 
     activeTab, 
-    isMobileFrameView, 
     toastMessage
   } = useApp();
 
-  // App phase navigation
-  const [appPhase, setAppPhase] = useState('main'); // 'splash' | 'onboarding' | 'auth' | 'main'
+  // App phase navigation: 'landing' | 'auth' | 'main'
+  const [appPhase, setAppPhase] = useState('landing');
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
 
   // Render current tab
   const renderCurrentTab = () => {
@@ -37,20 +37,47 @@ function AppContent() {
     }
   };
 
-  if (appPhase === 'splash') {
-    return <SplashScreen onFinish={() => setAppPhase('onboarding')} />;
-  }
+  if (appPhase === 'landing') {
+    return (
+      <div className="relative">
+        <LandingScreen
+          onGetStarted={() => setAppPhase('main')}
+          onLogin={() => {
+            setAuthMode('login');
+            setAppPhase('auth');
+          }}
+          onCreateAccount={() => {
+            setAuthMode('signup');
+            setAppPhase('auth');
+          }}
+        />
 
-  if (appPhase === 'onboarding') {
-    return <OnboardingFlow onComplete={() => setAppPhase('auth')} />;
+        {/* Quick Reviewer Helper Bar */}
+        <div className="hidden lg:flex fixed bottom-3 left-4 z-50 items-center gap-2 text-xs bg-white/95 backdrop-blur border border-[#EBE3D7] px-3.5 py-1.5 rounded-full shadow-soft">
+          <span className="text-[11px] font-bold text-[#7C746F]">Flow Quick-Jump:</span>
+          <button
+            onClick={() => setAppPhase('main')}
+            className="text-[11px] font-bold text-[#566E54] hover:underline"
+          >
+            Direct to Dashboard →
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (appPhase === 'auth') {
-    return <AuthScreen onLoginSuccess={() => setAppPhase('main')} />;
+    return (
+      <AuthScreen
+        initialMode={authMode}
+        onLoginSuccess={() => setAppPhase('main')}
+        onBackToLanding={() => setAppPhase('landing')}
+      />
+    );
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#2D2825] flex flex-col items-center">
+    <div className="min-h-screen bg-[#FAF7F2] text-[#2D2825] flex flex-col">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#2D2825]/90 backdrop-blur-md text-[#FAF7F2] text-xs font-semibold px-4 py-2.5 rounded-full shadow-soft-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2 border border-[#EBE3D7]/30">
@@ -59,56 +86,35 @@ function AppContent() {
         </div>
       )}
 
-      {/* Mode helper pill for desktop reviewers to re-launch splash / onboarding */}
-      <div className="hidden lg:flex fixed top-3 left-4 z-40 items-center gap-2 text-xs bg-white/90 backdrop-blur border border-[#EBE3D7] px-3.5 py-1.5 rounded-full shadow-soft">
-        <span className="text-[11px] font-bold text-[#7C746F]">Flow Test:</span>
+      {/* Discrete Reviewer helper pill to re-visit Landing or Auth */}
+      <div className="hidden xl:flex fixed bottom-3 left-4 z-40 items-center gap-2 text-xs bg-white/90 backdrop-blur border border-[#EBE3D7] px-3.5 py-1.5 rounded-full shadow-soft">
+        <span className="text-[11px] font-bold text-[#7C746F]">Test Views:</span>
         <button
-          onClick={() => setAppPhase('splash')}
+          onClick={() => setAppPhase('landing')}
           className="text-[11px] font-semibold text-[#566E54] hover:underline"
         >
-          Splash
+          Landing Page
         </button>
         <span className="text-[#DACBB8]">•</span>
         <button
-          onClick={() => setAppPhase('onboarding')}
+          onClick={() => {
+            setAuthMode('login');
+            setAppPhase('auth');
+          }}
           className="text-[11px] font-semibold text-[#566E54] hover:underline"
         >
-          Onboarding
-        </button>
-        <span className="text-[#DACBB8]">•</span>
-        <button
-          onClick={() => setAppPhase('auth')}
-          className="text-[11px] font-semibold text-[#566E54] hover:underline"
-        >
-          Login
+          Login / Signup
         </button>
       </div>
 
-      {/* Main Container: Can toggle between Laptop Full View and Simulated Mobile Phone Frame */}
-      {isMobileFrameView ? (
-        <div className="my-6 w-full max-w-sm rounded-[44px] p-3 bg-[#2D2825] shadow-2xl border-[6px] border-[#383330] relative">
-          {/* Speaker notch */}
-          <div className="w-28 h-4 bg-[#383330] rounded-full mx-auto mb-2" />
-          
-          {/* Simulated Mobile Screen Canvas */}
-          <div className="bg-[#FAF7F2] rounded-[36px] overflow-hidden flex flex-col h-[780px] relative">
-            <TopHeader />
-            <main className="flex-1 overflow-y-auto px-4 py-4 pb-24 space-y-4">
-              {renderCurrentTab()}
-            </main>
-            <BottomNav />
-          </div>
-        </div>
-      ) : (
-        /* Full Responsive View (Optimized for Mobile first, elegant on Tablet and Laptop) */
-        <div className="w-full max-w-lg min-h-screen flex flex-col bg-[#FAF7F2] shadow-sm relative">
-          <TopHeader />
-          <main className="flex-1 px-4 py-4 pb-28 space-y-4">
-            {renderCurrentTab()}
-          </main>
-          <BottomNav />
-        </div>
-      )}
+      {/* Full Responsive App Shell (Mobile, Tablet, Desktop) */}
+      <div className="w-full flex-1 flex flex-col">
+        <TopHeader />
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-10">
+          {renderCurrentTab()}
+        </main>
+        <BottomNav />
+      </div>
 
       {/* Global Modals & Drawers */}
       <NotificationsDrawer />

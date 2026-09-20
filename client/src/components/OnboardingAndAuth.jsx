@@ -3,197 +3,295 @@ import {
   ArrowRight, 
   Lock, 
   Store, 
-  ShieldCheck
+  ShieldCheck, 
+  User, 
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
+  Landmark,
+  ArrowLeft
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import NaturalVendorImage from './NaturalVendorImage';
 
-export function SplashScreen({ onFinish }) {
-  const { t } = useApp();
+/**
+ * LandingScreen - Replaces the 3-step carousel with a single comprehensive landing page.
+ * Follows the user's handwritten reference sketch:
+ * - TrackShack branding at top
+ * - Welcoming heading/subheading for Indian small business owners
+ * - Indian vendor illustrations at sides / decorative placement
+ * - 3 distinct feature cards (Track Daily Sales, Control Daily Expenses, Manage Microloans & Repayments)
+ * - Prominent "Get Started" button
+ * - Clear "Log In" and "Create an Account" actions
+ * - Language selector removed from onboarding as requested
+ */
+export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#FAF7F2] flex flex-col items-center justify-between p-6 animate-in fade-in duration-500">
-      <div className="w-full flex justify-end">
-        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
-          Indian Vendor Fintech
-        </span>
-      </div>
+    <div className="min-h-screen bg-[#FAF7F2] text-[#2D2825] flex flex-col justify-between py-6 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Soft Pastel Organic Aura Background Elements */}
+      <div className="absolute -top-24 -left-24 w-80 h-80 bg-[#EAF0E9] rounded-full blur-3xl opacity-60 pointer-events-none -z-10" />
+      <div className="absolute top-1/3 -right-24 w-96 h-96 bg-[#F9EDE7] rounded-full blur-3xl opacity-50 pointer-events-none -z-10" />
+      <div className="absolute -bottom-24 left-1/4 w-80 h-80 bg-[#F1EFF7] rounded-full blur-3xl opacity-60 pointer-events-none -z-10" />
 
-      <div className="flex flex-col items-center text-center max-w-sm my-auto">
-        {/* Seamless 2D Indian Vendor Illustration */}
-        <div className="mb-6 relative">
-          <NaturalVendorImage 
-            type="cottoncandy" 
-            size="hero" 
-            backdrop="arch" 
-            backdropColor="sage" 
-            showBotanical={true}
-            alt="Track Shack Mascot" 
-          />
-          <div className="absolute -bottom-2 -right-2 bg-white px-3 py-1.5 rounded-full shadow-soft border border-[#EBE3D7] flex items-center gap-1.5 animate-bounce">
-            <span className="w-2 h-2 bg-[#6B8569] rounded-full" />
-            <span className="text-xs font-bold text-[#2D2825]">Track Shack</span>
+      {/* 1. TOP HEADER & BRANDING */}
+      <header className="max-w-6xl mx-auto w-full flex items-center justify-between py-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-2xl bg-[#6B8569] text-white flex items-center justify-center font-serif font-bold text-lg shadow-pastel">
+            TS
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-serif font-bold text-lg sm:text-xl text-[#2D2825] tracking-tight">
+                TrackShack
+              </span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
+                Small Business
+              </span>
+            </div>
+            <p className="text-[11px] text-[#7C746F] font-medium hidden sm:block">
+              Financial Tracking for Indian Vendors
+            </p>
           </div>
         </div>
 
-        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#2D2825] tracking-tight">
-          Track Shack
-        </h1>
-        <p className="text-sm sm:text-base text-[#7C746F] mt-2 font-medium">
-          {t.appTagline}
-        </p>
-
-        <div className="mt-7 flex items-center gap-2 text-xs text-[#605955] bg-white/80 backdrop-blur px-4 py-2 rounded-full border border-[#EBE3D7] shadow-soft">
-          <ShieldCheck className="w-4 h-4 text-[#566E54]" />
-          <span>Simple, trustworthy & vernacular for everyday vendors</span>
+        {/* Quick Top Login Link */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onLogin}
+            className="text-xs font-bold text-[#566E54] hover:text-[#314030] px-3.5 py-1.5 rounded-full bg-white/80 hover:bg-white border border-[#EBE3D7] shadow-soft transition touch-press"
+          >
+            Log In
+          </button>
         </div>
-      </div>
+      </header>
 
-      <div className="w-full max-w-xs pb-4">
-        <button
-          onClick={onFinish}
-          className="w-full py-3.5 px-6 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold flex items-center justify-center gap-2 shadow-pastel active:scale-98 transition touch-press"
-        >
-          <span>{t.getStarted}</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function OnboardingFlow({ onComplete }) {
-  const { t, setLanguage, profile } = useApp();
-  const [slide, setSlide] = useState(0);
-
-  const slides = [
-    {
-      title: t.onboardTitle1,
-      desc: t.onboardDesc1,
-      illustrationType: 'cottoncandy',
-      backdropColor: 'sage',
-      badge: 'Sales & Quick Entry',
-      badgeColor: 'bg-[#E9EFE8] text-[#425541] border-[#D3DFD2]',
-      highlight: '₹ Record with touch or voice in 3 seconds'
-    },
-    {
-      title: t.onboardTitle2,
-      desc: t.onboardDesc2,
-      illustrationType: 'flowers',
-      backdropColor: 'terracotta',
-      badge: 'Daily Expenses',
-      badgeColor: 'bg-[#F8ECE6] text-[#874937] border-[#F0D7CD]',
-      highlight: '₹ Track stock, transport & daily tea'
-    },
-    {
-      title: t.onboardTitle3,
-      desc: t.onboardDesc3,
-      illustrationType: 'farmer',
-      backdropColor: 'lavender',
-      badge: 'Microloans & Surplus',
-      badgeColor: 'bg-[#F2F0F8] text-[#554C78] border-[#E3DFEF]',
-      highlight: '₹ Never miss a repayment & know cash in hand'
-    }
-  ];
-
-  const current = slides[slide];
-
-  const handleNext = () => {
-    if (slide < slides.length - 1) {
-      setSlide(slide + 1);
-    } else {
-      onComplete();
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-[#FAF7F2] flex flex-col justify-between p-6">
-      {/* Top Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          {['en', 'kn', 'hi'].map((lng) => (
-            <button
-              key={lng}
-              onClick={() => setLanguage(lng)}
-              className={`px-3 py-1 text-xs rounded-full font-medium transition touch-press ${
-                profile.language === lng 
-                  ? 'bg-[#566E54] text-white shadow-soft font-semibold' 
-                  : 'bg-white text-[#7C746F] border border-[#EBE3D7]'
-              }`}
-            >
-              {lng === 'en' ? 'English' : lng === 'kn' ? 'ಕನ್ನಡ' : 'हिन्दी'}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={onComplete}
-          className="text-xs font-semibold text-[#7C746F] hover:text-[#2D2825] px-3 py-1.5"
-        >
-          {t.skip}
-        </button>
-      </div>
-
-      {/* Main Slide Card */}
-      <div className="flex flex-col items-center text-center my-auto max-w-sm mx-auto">
-        <div className="relative mb-6">
-          <NaturalVendorImage 
-            type={current.illustrationType}
-            size="hero"
-            backdrop="arch"
-            backdropColor={current.backdropColor}
-            showBotanical={true}
-            alt={current.title}
-          />
-          <div className="absolute top-2 right-2">
-            <span className={`text-[11px] font-semibold px-3 py-1 rounded-full border shadow-soft ${current.badgeColor}`}>
-              {current.badge}
-            </span>
-          </div>
-        </div>
-
-        <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#2D2825] leading-tight">
-          {current.title}
-        </h2>
-        <p className="text-sm text-[#7C746F] mt-2.5 font-medium px-4 leading-relaxed">
-          {current.desc}
-        </p>
-
-        <div className="mt-4 px-4 py-1.5 rounded-full bg-white border border-[#EBE3D7] text-xs font-semibold text-[#605955] shadow-soft">
-          {current.highlight}
-        </div>
-
-        {/* Dots */}
-        <div className="flex items-center gap-2 mt-6">
-          {slides.map((_, idx) => (
-            <span
-              key={idx}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                slide === idx ? 'w-6 bg-[#566E54]' : 'w-2 bg-[#D8CCA] bg-[#DACBB8]'
-              }`}
+      {/* 2. MAIN HERO SECTION */}
+      <main className="max-w-6xl mx-auto w-full my-auto py-6 sm:py-8 space-y-8">
+        {/* Welcoming Hero Header with 2 Indian Vendor Illustrations at Sides */}
+        <div className="relative bg-white/70 backdrop-blur-sm rounded-3xl p-6 sm:p-10 border border-[#EBE3D7] shadow-soft text-center overflow-hidden">
+          {/* Left Side Decorative Illustration (Cotton Candy / Street Vendor) */}
+          <div className="hidden lg:block absolute left-4 bottom-2 pointer-events-none opacity-90">
+            <NaturalVendorImage 
+              type="cottoncandy" 
+              size="lg" 
+              backdrop="arch" 
+              backdropColor="sage" 
+              showBotanical={true}
+              alt="Indian Street Vendor" 
             />
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Bottom Button */}
-      <div className="w-full max-w-sm mx-auto">
-        <button
-          onClick={handleNext}
-          className="w-full py-3.5 px-6 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold flex items-center justify-center gap-2 shadow-pastel active:scale-98 transition touch-press"
-        >
-          <span>{slide === slides.length - 1 ? t.getStarted : t.next}</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      </div>
+          {/* Right Side Decorative Illustration (Flower Seller / Farmer) */}
+          <div className="hidden lg:block absolute right-4 bottom-2 pointer-events-none opacity-90">
+            <NaturalVendorImage 
+              type="flowers" 
+              size="lg" 
+              backdrop="arch" 
+              backdropColor="terracotta" 
+              showBotanical={true}
+              alt="Indian Vendor Woman" 
+            />
+          </div>
+
+          {/* Center Text */}
+          <div className="max-w-2xl mx-auto space-y-3 z-10 relative">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2] text-xs font-semibold shadow-soft">
+              <Sparkles className="w-3.5 h-3.5 text-[#6B8569]" />
+              <span>Tailored for Street Vendors, Mandis & Small Shops</span>
+            </div>
+
+            <h1 className="font-serif text-2xl sm:text-4xl lg:text-5xl font-bold text-[#2D2825] leading-tight tracking-tight">
+              Track Sales, Expenses & Microloans in One Place
+            </h1>
+
+            <p className="text-xs sm:text-base text-[#6E6763] font-medium leading-relaxed max-w-xl mx-auto">
+              Empowering Indian small business owners to record daily earnings, control stock expenses, and stay stress-free with microloan repayments.
+            </p>
+          </div>
+        </div>
+
+        {/* 3. THREE FEATURE CARDS (All together on one single page) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+          {/* Card 1: Track Daily Sales */}
+          <div className="bg-[#FAFBF9] hover:bg-white rounded-3xl p-5 sm:p-6 border border-[#DCE5DC] shadow-soft hover:shadow-soft-md transition-all duration-200 flex flex-col justify-between group">
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
+                  Daily Inflow
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-[#E9EFE8] text-[#566E54] flex items-center justify-center font-bold">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* Vendor Illustration */}
+              <div className="flex justify-center py-2">
+                <NaturalVendorImage 
+                  type="cottoncandy" 
+                  size="md" 
+                  backdrop="blob" 
+                  backdropColor="sage" 
+                  alt="Track Daily Sales" 
+                />
+              </div>
+
+              <div className="text-center space-y-1.5">
+                <h2 className="font-serif font-bold text-lg sm:text-xl text-[#2D2825]">
+                  Track Daily Sales
+                </h2>
+                <p className="text-xs text-[#7C746F] leading-relaxed">
+                  Record cash and UPI payments instantly with voice or touch. See your daily total grow in real time.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#EAE1D4] text-center">
+              <span className="text-[11px] font-semibold text-[#566E54] bg-[#E9EFE8]/70 px-3 py-1 rounded-full inline-block">
+                ₹ Record in 3 seconds
+              </span>
+            </div>
+          </div>
+
+          {/* Card 2: Control Daily Expenses */}
+          <div className="bg-[#FCF9F7] hover:bg-white rounded-3xl p-5 sm:p-6 border border-[#F2DDD4] shadow-soft hover:shadow-soft-md transition-all duration-200 flex flex-col justify-between group">
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#F8ECE6] text-[#874937] border border-[#F0D7CD]">
+                  Daily Outflow
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-[#F8ECE6] text-[#BF745F] flex items-center justify-center font-bold">
+                  <TrendingDown className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* Vendor Illustration */}
+              <div className="flex justify-center py-2">
+                <NaturalVendorImage 
+                  type="flowers" 
+                  size="md" 
+                  backdrop="blob" 
+                  backdropColor="terracotta" 
+                  alt="Control Daily Expenses" 
+                />
+              </div>
+
+              <div className="text-center space-y-1.5">
+                <h2 className="font-serif font-bold text-lg sm:text-xl text-[#2D2825]">
+                  Control Daily Expenses
+                </h2>
+                <p className="text-xs text-[#7C746F] leading-relaxed">
+                  Log APMC mandi stock, tempo transport, shop rent, and chai. Always know your actual cash in hand.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#F2DDD4] text-center">
+              <span className="text-[11px] font-semibold text-[#BF745F] bg-[#F8ECE6]/70 px-3 py-1 rounded-full inline-block">
+                ₹ Know your real take-home cash
+              </span>
+            </div>
+          </div>
+
+          {/* Card 3: Manage Microloans & Repayments */}
+          <div className="bg-[#F9F8FC] hover:bg-white rounded-3xl p-5 sm:p-6 border border-[#E3DFEF] shadow-soft hover:shadow-soft-md transition-all duration-200 flex flex-col justify-between group">
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#F2F0F8] text-[#554C78] border border-[#E3DFEF]">
+                  Micro-Credit
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-[#F2F0F8] text-[#877EB0] flex items-center justify-center font-bold">
+                  <Landmark className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* Vendor Illustration */}
+              <div className="flex justify-center py-2">
+                <NaturalVendorImage 
+                  type="farmer" 
+                  size="md" 
+                  backdrop="blob" 
+                  backdropColor="lavender" 
+                  alt="Manage Microloans & Repayments" 
+                />
+              </div>
+
+              <div className="text-center space-y-1.5">
+                <h2 className="font-serif font-bold text-lg sm:text-xl text-[#2D2825]">
+                  Manage Microloans & Repayments
+                </h2>
+                <p className="text-xs text-[#7C746F] leading-relaxed">
+                  Clear tracking for PM SVANidhi, SHG loans, and local wholesale credit. Never miss a due date.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#E3DFEF] text-center">
+              <span className="text-[11px] font-semibold text-[#554C78] bg-[#F2F0F8]/70 px-3 py-1 rounded-full inline-block">
+                ₹ Clear repayment schedule
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. ACTIONS AREA: Get Started, Log In, Create Account */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EBE3D7] shadow-soft max-w-xl mx-auto text-center space-y-4">
+          {/* Prominent "Get Started" Button */}
+          <button
+            onClick={onGetStarted}
+            className="w-full py-4 px-8 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-serif font-bold text-base shadow-pastel hover:shadow-soft-lg active:scale-98 transition flex items-center justify-center gap-2.5 touch-press"
+          >
+            <span>Get Started with TrackShack</span>
+            <ArrowRight className="w-5 h-5" />
+          </button>
+
+          {/* Clear Account Actions */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <button
+              onClick={onCreateAccount}
+              className="w-full sm:w-auto px-6 py-2.5 rounded-full border border-[#566E54] text-[#566E54] hover:bg-[#E9EFE8] font-bold text-xs transition touch-press"
+            >
+              Create an Account
+            </button>
+            <span className="text-xs text-[#DACBB8] hidden sm:inline">•</span>
+            <div className="text-xs text-[#7C746F]">
+              <span>Already have an account? </span>
+              <button
+                onClick={onLogin}
+                className="font-bold text-[#566E54] hover:underline underline-offset-2"
+              >
+                Log In
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-[#F3EDE3] flex items-center justify-center gap-2 text-[11px] text-[#7C746F]">
+            <ShieldCheck className="w-4 h-4 text-[#566E54] shrink-0" />
+            <span>Free for street vendors & small shops • 100% private & secure</span>
+          </div>
+        </div>
+      </main>
+
+      {/* 5. MINIMAL FOOTER */}
+      <footer className="max-w-6xl mx-auto w-full text-center py-2 text-[11px] text-[#9A938E]">
+        <span>TrackShack • Digital Companion for Indian Small Businesses & Street Vendors</span>
+      </footer>
     </div>
   );
 }
 
-export function AuthScreen({ onLoginSuccess }) {
-  const { t, setLanguage, profile } = useApp();
-  const [isSignUp, setIsSignUp] = useState(false);
+/**
+ * AuthScreen - Handles Login and Account Creation.
+ * Presentation modernized to soft pastel theme with easy tab toggle.
+ * Retains exact phone + password + demo authentication logic.
+ * Language picker removed from onboarding as requested.
+ */
+export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'login' }) {
+  const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
   const [phone, setPhone] = useState('9876543210');
   const [password, setPassword] = useState('vendor123');
+  const [ownerName, setOwnerName] = useState('Ravi Kumar');
+  const [businessName, setBusinessName] = useState('Ravi Fresh Fruits & Vegetables');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -201,33 +299,54 @@ export function AuthScreen({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] flex flex-col justify-center items-center p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-[#EBE3D7] shadow-soft-md">
-        {/* Top Branding */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-[#6B8569] text-white flex items-center justify-center font-serif font-bold text-base shadow-pastel">
+    <div className="min-h-screen bg-[#FAF7F2] flex flex-col justify-center items-center p-4 relative overflow-hidden">
+      {/* Background Pastel Circles */}
+      <div className="absolute top-10 -left-20 w-72 h-72 bg-[#EAF0E9] rounded-full blur-3xl opacity-60 pointer-events-none -z-10" />
+      <div className="absolute bottom-10 -right-20 w-72 h-72 bg-[#F9EDE7] rounded-full blur-3xl opacity-60 pointer-events-none -z-10" />
+
+      <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-[#EBE3D7] shadow-soft-md space-y-5">
+        {/* Back Link & Branding */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBackToLanding}
+            className="flex items-center gap-1 text-xs font-semibold text-[#7C746F] hover:text-[#2D2825] transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Landing Page</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-[#6B8569] text-white flex items-center justify-center font-serif font-bold text-xs shadow-soft">
               TS
             </div>
-            <div>
-              <h2 className="font-serif font-bold text-lg text-[#2D2825]">Track Shack</h2>
-              <p className="text-[11px] text-[#7C746F]">{t.appTagline}</p>
-            </div>
+            <span className="font-serif font-bold text-sm text-[#2D2825]">TrackShack</span>
           </div>
-          {/* Language selector */}
-          <select
-            value={profile.language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="text-xs font-semibold bg-[#FAF7F2] text-[#48433F] rounded-full px-3 py-1 outline-none border border-[#EBE3D7]"
-          >
-            <option value="en">English</option>
-            <option value="kn">ಕನ್ನಡ</option>
-            <option value="hi">हिन्दी</option>
-          </select>
         </div>
 
-        {/* Welcoming 2D Illustration Card */}
-        <div className="bg-[#FAF4ED] rounded-2xl p-3.5 mb-6 flex items-center gap-3 border border-[#EAE1D4]">
+        {/* Tab Switcher: Log In vs Create Account */}
+        <div className="flex bg-[#FAF7F2] p-1 rounded-2xl border border-[#EBE3D7]">
+          <button
+            type="button"
+            onClick={() => setIsSignUp(false)}
+            className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
+              !isSignUp ? 'bg-white text-[#2D2825] shadow-soft' : 'text-[#7C746F] hover:text-[#2D2825]'
+            }`}
+          >
+            Log In
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsSignUp(true)}
+            className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
+              isSignUp ? 'bg-white text-[#2D2825] shadow-soft' : 'text-[#7C746F] hover:text-[#2D2825]'
+            }`}
+          >
+            Create an Account
+          </button>
+        </div>
+
+        {/* Welcoming Illustration Card */}
+        <div className="bg-[#FAF4ED] rounded-2xl p-3.5 flex items-center gap-3 border border-[#EAE1D4]">
           <div className="relative shrink-0">
             <NaturalVendorImage 
               type="flowers"
@@ -239,18 +358,56 @@ export function AuthScreen({ onLoginSuccess }) {
           </div>
           <div>
             <h3 className="font-serif font-bold text-sm text-[#2D2825]">
-              {isSignUp ? t.signup : t.login}
+              {isSignUp ? 'Open Your Free Account' : 'Welcome Back to TrackShack'}
             </h3>
-            <p className="text-xs text-[#7C746F] mt-0.5">
-              Made specially for Indian street vendors & small business owners
+            <p className="text-[11px] text-[#7C746F] mt-0.5">
+              Empowering Indian street vendors & small business owners
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          {isSignUp && (
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-[#48433F] mb-1">
+                  Your Full Name
+                </label>
+                <div className="relative flex items-center">
+                  <User className="w-4 h-4 absolute left-3.5 text-[#7C746F]" />
+                  <input
+                    type="text"
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    placeholder="e.g., Ramesh Patel"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl text-xs font-medium text-[#2D2825] focus:bg-white focus:border-[#6B8569] outline-none transition"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#48433F] mb-1">
+                  Business / Shop Name
+                </label>
+                <div className="relative flex items-center">
+                  <Store className="w-4 h-4 absolute left-3.5 text-[#7C746F]" />
+                  <input
+                    type="text"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder="e.g., Patel Fresh Vegetables"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl text-xs font-medium text-[#2D2825] focus:bg-white focus:border-[#6B8569] outline-none transition"
+                    required
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           <div>
-            <label className="block text-xs font-semibold text-[#48433F] mb-1.5">
-              {t.mobileNumber}
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
+              Mobile Number
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3.5 text-xs font-bold text-[#7C746F]">
@@ -260,16 +417,16 @@ export function AuthScreen({ onLoginSuccess }) {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="10 digit number"
-                className="w-full pl-12 pr-4 py-3 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl text-sm font-medium text-[#2D2825] focus:bg-white focus:border-[#6B8569] outline-none transition"
+                placeholder="10 digit mobile number"
+                className="w-full pl-12 pr-4 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl text-xs font-medium text-[#2D2825] focus:bg-white focus:border-[#6B8569] outline-none transition"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#48433F] mb-1.5">
-              {t.password}
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
+              Password
             </label>
             <div className="relative flex items-center">
               <Lock className="w-4 h-4 absolute left-3.5 text-[#7C746F]" />
@@ -278,52 +435,50 @@ export function AuthScreen({ onLoginSuccess }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-3 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl text-sm font-medium text-[#2D2825] focus:bg-white focus:border-[#6B8569] outline-none transition"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl text-xs font-medium text-[#2D2825] focus:bg-white focus:border-[#6B8569] outline-none transition"
                 required
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center justify-between text-xs pt-1">
             <label className="flex items-center gap-1.5 text-[#605955] cursor-pointer">
               <input type="checkbox" defaultChecked className="rounded text-[#566E54] focus:ring-0" />
               <span>Remember me</span>
             </label>
-            <button type="button" className="font-semibold text-[#566E54] hover:underline">
-              {t.forgotPassword}
-            </button>
+            {!isSignUp && (
+              <button type="button" className="font-semibold text-[#566E54] hover:underline">
+                Forgot password?
+              </button>
+            )}
           </div>
 
           <button
             type="submit"
-            className="w-full py-3.5 px-4 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold shadow-pastel active:scale-98 transition flex items-center justify-center gap-2 mt-2 touch-press"
+            className="w-full py-3 px-4 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold shadow-pastel active:scale-98 transition flex items-center justify-center gap-2 mt-2 touch-press"
           >
-            <span>{isSignUp ? t.signup : t.login}</span>
+            <span>{isSignUp ? 'Create Account & Enter' : 'Log In to TrackShack'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        <div className="mt-6 text-center text-xs text-[#7C746F]">
-          <span>{isSignUp ? "Already have an account?" : "New to Track Shack?"} </span>
-          <button
-            type="button"
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="font-bold text-[#566E54] hover:underline ml-1"
-          >
-            {isSignUp ? t.login : t.signup}
-          </button>
-        </div>
-
         {/* Demo Fast Login Banner */}
-        <div className="mt-6 pt-4 border-t border-[#F3EDE3] text-center">
-          <p className="text-[11px] text-[#9A938E]">
-            {t.demoDataNotice}
+        <div className="pt-3 border-t border-[#F3EDE3] text-center space-y-1">
+          <p className="text-[11px] text-[#7C746F]">
+            Pre-filled with <strong>Ravi Kumar</strong> (Vegetable & Fruit Vendor demo account).
+          </p>
+          <p className="text-[10px] text-[#9A938E]">
+            Tap the button above to instantly explore live sales, expenses & loans.
           </p>
         </div>
       </div>
     </div>
   );
 }
+
+// Backward-compatibility wrappers in case imported elsewhere
+export const SplashScreen = LandingScreen;
+export const OnboardingFlow = LandingScreen;
 
 export function BusinessProfileSetupModal({ isOpen, onClose }) {
   const { t, profile, setProfile, showToast } = useApp();

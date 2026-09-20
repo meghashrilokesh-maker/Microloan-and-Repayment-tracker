@@ -6,9 +6,7 @@ import {
   Landmark, 
   PieChart, 
   Bell, 
-  Globe, 
-  Smartphone, 
-  Monitor 
+  Globe
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -16,94 +14,112 @@ export function TopHeader() {
   const { 
     profile, 
     setLanguage, 
-    isMobileFrameView, 
-    setIsMobileFrameView, 
     setNotificationsOpen, 
-    setProfileModalOpen 
+    setProfileModalOpen,
+    activeTab,
+    setActiveTab,
+    t
   } = useApp();
 
+  const navItems = [
+    { id: 'home', label: t.navHome, icon: Home },
+    { id: 'sales', label: t.navSales, icon: TrendingUp },
+    { id: 'expenses', label: t.navExpenses, icon: TrendingDown },
+    { id: 'loans', label: t.navLoans, icon: Landmark },
+    { id: 'reports', label: t.navReports, icon: PieChart },
+  ];
+
   return (
-    <header className="sticky top-0 z-30 bg-[#FAF7F2]/90 backdrop-blur-md border-b border-[#EBE3D7] shadow-soft px-4 py-3">
-      <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
+    <header className="sticky top-0 z-30 bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#EBE3D7] shadow-soft px-4 sm:px-6 lg:px-8 py-3">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Left: App Logo & Shop Name */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-[#6B8569] text-white flex items-center justify-center shadow-pastel font-serif font-bold text-lg">
+        <div 
+          onClick={() => setActiveTab('home')}
+          className="flex items-center gap-3 cursor-pointer group"
+        >
+          <div className="w-10 h-10 rounded-2xl bg-[#6B8569] text-white flex items-center justify-center shadow-pastel font-serif font-bold text-lg group-hover:scale-102 transition">
             TS
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="font-serif font-bold text-base sm:text-lg text-[#2D2825] tracking-tight leading-none">
-                Track Shack
+            <div className="flex items-center gap-2">
+              <h1 className="font-serif font-bold text-lg sm:text-xl text-[#2D2825] tracking-tight leading-none">
+                TrackShack
               </h1>
-              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
-                Vendor
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
+                {profile.businessType || 'Vendor'}
               </span>
             </div>
-            <p className="text-xs text-[#7C746F] font-medium truncate max-w-[140px] sm:max-w-xs">
+            <p className="text-xs text-[#7C746F] font-medium truncate max-w-[150px] sm:max-w-xs mt-0.5">
               {profile.businessName}
             </p>
           </div>
         </div>
 
-        {/* Right: Actions (Language, Laptop/Mobile Preview, Notifications, Profile) */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Center: Desktop Navigation Tabs (Hidden on Mobile, Visible on Tablet/Laptop) */}
+        <nav className="hidden md:flex items-center gap-1.5 bg-white/90 p-1 rounded-full border border-[#EBE3D7] shadow-soft">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 touch-press ${
+                  isActive
+                    ? 'bg-[#566E54] text-white shadow-soft font-bold'
+                    : 'text-[#7C746F] hover:text-[#2D2825] hover:bg-[#FAF7F2]'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-[#8E8681]'}`} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Right: Actions (Language Selector, Notifications, Profile Settings) */}
+        <div className="flex items-center gap-2">
           {/* Language Selector Dropdown */}
-          <div className="relative flex items-center bg-white/80 hover:bg-white rounded-full px-2 py-1 border border-[#EBE3D7] shadow-soft transition">
-            <Globe className="w-3.5 h-3.5 text-[#7C746F] mr-1" />
+          <div className="relative flex items-center bg-white/90 hover:bg-white rounded-full px-2.5 py-1.5 border border-[#EBE3D7] shadow-soft transition">
+            <Globe className="w-3.5 h-3.5 text-[#7C746F] mr-1.5 shrink-0" />
             <select
               value={profile.language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-[#48433F] outline-none cursor-pointer"
+              className="bg-transparent text-xs font-bold text-[#48433F] outline-none cursor-pointer pr-1"
             >
-              <option value="en">EN</option>
+              <option value="en">English</option>
               <option value="kn">ಕನ್ನಡ</option>
               <option value="hi">हिन्दी</option>
             </select>
           </div>
 
-          {/* Device Frame View Toggle (Mobile Frame vs Laptop Canvas) */}
-          <button
-            onClick={() => setIsMobileFrameView(!isMobileFrameView)}
-            title={isMobileFrameView ? "Switch to Full Laptop View" : "Simulate Mobile Screen"}
-            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-[#48433F] bg-white/80 hover:bg-white border border-[#EBE3D7] shadow-soft transition"
-          >
-            {isMobileFrameView ? (
-              <>
-                <Monitor className="w-3.5 h-3.5 text-[#566E54]" />
-                <span>Laptop View</span>
-              </>
-            ) : (
-              <>
-                <Smartphone className="w-3.5 h-3.5 text-[#877EB0]" />
-                <span>Mobile Frame</span>
-              </>
-            )}
-          </button>
-
-          {/* Notifications Bell */}
+          {/* Notifications Bell with Unread Indicator */}
           <button
             onClick={() => setNotificationsOpen(true)}
-            className="relative p-2 rounded-full text-[#605955] bg-white/80 hover:bg-white border border-[#EBE3D7] shadow-soft transition touch-press"
-            aria-label="Notifications"
+            className="relative p-2 rounded-full text-[#605955] bg-white/90 hover:bg-white border border-[#EBE3D7] shadow-soft transition touch-press"
+            aria-label="Notifications & Due Reminders"
           >
             <Bell className="w-4 h-4" />
             <span className="absolute top-1 right-1 w-2 h-2 bg-[#BF745F] rounded-full ring-2 ring-[#FAF7F2]" />
           </button>
 
-          {/* Profile Avatar with 2D Illustration */}
+          {/* Profile Avatar Button */}
           <button
             onClick={() => setProfileModalOpen(true)}
-            className="flex items-center gap-1.5 p-1 rounded-full hover:bg-white/80 transition touch-press border border-[#EBE3D7]"
+            className="flex items-center gap-2 p-1 pl-1 pr-2.5 rounded-full bg-white/90 hover:bg-white border border-[#EBE3D7] shadow-soft transition touch-press"
             aria-label="Profile Settings"
           >
-            <div className="w-8 h-8 rounded-full bg-[#E9EFE8] overflow-hidden flex items-center justify-center border border-[#D3DFD2]">
+            <div className="w-7 h-7 rounded-full bg-[#E9EFE8] overflow-hidden flex items-center justify-center border border-[#D3DFD2]">
               <img 
                 src="/images/vendor-cottoncandy.png" 
                 alt="Profile Avatar" 
-                className="w-7 h-7 object-contain drop-shadow-sm"
+                className="w-6 h-6 object-contain drop-shadow-sm"
                 onError={(e) => { e.target.src = '/images/vendor-flowers.png'; }}
               />
             </div>
+            <span className="text-xs font-semibold text-[#2D2825] hidden sm:inline truncate max-w-[80px]">
+              {profile.ownerName.split(' ')[0]}
+            </span>
           </button>
         </div>
       </div>
@@ -123,7 +139,8 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-3 left-3 right-3 sm:left-auto sm:right-auto sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:left-1/2 z-40 bg-white/95 backdrop-blur-md rounded-3xl border border-[#EBE3D7] shadow-soft-lg pb-safe">
+    /* Hidden on desktop (md:) because desktop users use the header navigation */
+    <nav className="md:hidden fixed bottom-3 left-3 right-3 z-40 bg-white/95 backdrop-blur-md rounded-3xl border border-[#EBE3D7] shadow-soft-lg pb-safe">
       <div className="flex items-center justify-around py-2 px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
