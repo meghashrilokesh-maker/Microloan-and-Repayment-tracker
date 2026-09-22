@@ -46,13 +46,16 @@ app.use((req, res) => {
   res.status(404).json({ message: `Route ${req.originalUrl} not found` });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`=========================================`);
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`🩺 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`=========================================`);
-});
+// Start server if not running in a serverless environment (e.g. Vercel)
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`=========================================`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🩺 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`=========================================`);
+  });
+}
 
 export default app;
+
 

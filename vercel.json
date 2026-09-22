@@ -1,11 +1,15 @@
 {
-  "buildCommand": "npm --prefix client run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "client/dist",
-  "framework": "vite",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
 }
+
