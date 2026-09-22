@@ -449,7 +449,7 @@ export function AddLoanModal({ isOpen, onClose }) {
       await addLoan({
         name: formData.name || 'Microcredit Account',
         lender: formData.lender || 'Local Bank',
-        originalAmount: loanAmountNum,
+        amount: loanAmountNum,
         repaymentAmount: repayAmountNum || 500,
         frequency: formData.frequency,
         firstDueDate: formData.firstDueDate,

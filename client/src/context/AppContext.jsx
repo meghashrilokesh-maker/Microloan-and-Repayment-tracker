@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { translations } from '../utils/translations';
 import { authApi, financialsApi, connectSSE } from '../utils/api';
-
+import { supabase } from '../superbaseClient';
 const AppContext = createContext();
 
 const INITIAL_PROFILE = {
@@ -165,6 +165,43 @@ export function AppProvider({ children }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+
+  const fetchLoans = async () => {
+    const { data, error } = await supabase
+      .from('loans')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching loans:', error);
+      return;
+    }
+
+    const formattedLoans = data.map(loan => ({
+      id: loan.id,
+      name: loan.loan_name,
+      lender: loan.lender,
+      originalAmount: Number(loan.loan_amount),
+      totalRepaid: 0,
+      remainingAmount: Number(loan.loan_amount),
+      repaymentAmount: Number(loan.repayment_amount || 0),
+      frequency: loan.repayment_frequency,
+      firstDueDate: loan.first_due_date,
+      nextDueDate: loan.next_due_date,
+      finalDueDate: loan.final_due_date || '',
+      status: loan.status || 'On Track',
+      notes: loan.notes || '',
+      repayments: []
+    }));
+
+    setLoans(formattedLoans);
+
+    console.log('Loans loaded from Supabase:', formattedLoans);
+  };
+
+  useEffect(() => {
+    fetchLoans();
+  }, []);
 
   // Safe Toast: always sets a plain string, never an object with {code, message}
   const showToast = (msg) => {
@@ -412,31 +449,62 @@ export function AppProvider({ children }) {
 
   const addLoan = async (loanData) => {
     const amount = Number(loanData.amount);
+
     const newLoan = {
-      id: 'l_' + Date.now(),
-      name: loanData.name || 'Microloan',
+      loan_name: loanData.name || 'Microloan',
       lender: loanData.lender || 'Local Bank',
-      originalAmount: amount,
-      totalRepaid: 0,
-      remainingAmount: amount,
-      repaymentAmount: Number(loanData.repaymentAmount || (amount / 10)),
-      frequency: loanData.frequency || 'Daily',
-      firstDueDate: loanData.firstDueDate || todayStr,
-      nextDueDate: loanData.firstDueDate || todayStr,
-      finalDueDate: loanData.finalDueDate || '',
+      loan_amount: amount,
+      interest_rate: Number(loanData.interestRate || 0),
+      repayment_amount: Number(
+        loanData.repaymentAmount || (amount / 10)
+      ),
+      repayment_frequency: loanData.frequency || 'Daily',
+      loan_date: todayStr,
+      first_due_date: loanData.firstDueDate || todayStr,
+      next_due_date: loanData.firstDueDate || todayStr,
+      final_due_date: loanData.finalDueDate || null,
       status: 'On Track',
-      notes: loanData.notes || '',
+      notes: loanData.notes || ''
+    };
+
+    const { data, error } = await supabase
+      .from('loans')
+      .insert([newLoan])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding loan:', error);
+      showToast('⚠ Failed to add loan');
+      return;
+    }
+
+    const formattedLoan = {
+      id: data.id,
+      name: data.loan_name,
+      lender: data.lender,
+      originalAmount: Number(data.loan_amount),
+      totalRepaid: 0,
+      remainingAmount: Number(data.loan_amount),
+      repaymentAmount: Number(data.repayment_amount || 0),
+      frequency: data.repayment_frequency,
+      firstDueDate: data.first_due_date,
+      nextDueDate: data.next_due_date,
+      finalDueDate: data.final_due_date || '',
+      status: data.status,
+      notes: data.notes || '',
       repayments: []
     };
-    setLoans(prev => [newLoan, ...prev]);
-    showToast(`✓ ${newLoan.name} added successfully!`);
+
+    setLoans(prev => [formattedLoan, ...prev]);
+    showToast(`✓ ${formattedLoan.name} added successfully!`);
 
     try {
       financialsApi.addLoan(loanData).catch(() => {});
     } catch (e) {
       // non-fatal
     }
-    return newLoan;
+    return formattedLoan;
   };
 
   const addRepayment = async ({ loanId, amount, date, method, note }) => {
