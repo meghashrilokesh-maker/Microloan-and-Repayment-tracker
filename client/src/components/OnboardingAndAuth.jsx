@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import NaturalVendorImage from './NaturalVendorImage';
+import { authApi } from '../utils/api';
 
 /**
  * LandingScreen - Replaces the 3-step carousel with a single comprehensive landing page.
@@ -287,16 +288,39 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
  * Language picker removed from onboarding as requested.
  */
 export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'login' }) {
+  const { loginUser, registerUser } = useApp();
   const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
   const [phone, setPhone] = useState('9876543210');
   const [password, setPassword] = useState('vendor123');
   const [ownerName, setOwnerName] = useState('Ravi Kumar');
   const [businessName, setBusinessName] = useState('Ravi Fresh Fruits & Vegetables');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onLoginSuccess();
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      if (isSignUp) {
+        await registerUser({
+          phone,
+          password,
+          fullName: ownerName,
+          businessName,
+        });
+      } else {
+        await loginUser(phone, password);
+      }
+      onLoginSuccess();
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Authentication failed';
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] flex flex-col justify-center items-center p-4 relative overflow-hidden">
@@ -453,13 +477,21 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
             )}
           </div>
 
+          {errorMsg && (
+            <div className="p-3 rounded-2xl bg-[#FAEEF0] border border-[#F4DBDF] text-xs font-semibold text-[#8A3846] text-center animate-in fade-in">
+              {errorMsg}
+            </div>
+          )}
+
           <button
             type="submit"
-            className="w-full py-3 px-4 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold shadow-pastel active:scale-98 transition flex items-center justify-center gap-2 mt-2 touch-press"
+            disabled={loading}
+            className="w-full py-3 px-4 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold shadow-pastel active:scale-98 transition flex items-center justify-center gap-2 mt-2 touch-press disabled:opacity-60"
           >
-            <span>{isSignUp ? 'Create Account & Enter' : 'Log In to TrackShack'}</span>
+            <span>{loading ? 'Please wait...' : (isSignUp ? 'Create Account & Enter' : 'Log In to TrackShack')}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
+
         </form>
 
         {/* Demo Fast Login Banner */}
@@ -501,12 +533,25 @@ export function BusinessProfileSetupModal({ isOpen, onClose }) {
     { label: 'Small Business / Shop', illustrationType: 'farmer', desc: 'Retail store' },
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setProfile(prev => ({ ...prev, ...formData }));
-    showToast('Business profile updated!');
-    onClose();
+    try {
+      await authApi.updateProfile({
+        fullName: formData.ownerName,
+        businessName: formData.businessName,
+        businessType: formData.businessType,
+        language: formData.language,
+        location: formData.location
+      });
+      setProfile(prev => ({ ...prev, ...formData }));
+      showToast('Business profile updated!');
+      onClose();
+    } catch (_err) {
+      showToast('Failed to update business profile in database');
+    }
+
   };
+
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2825]/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">

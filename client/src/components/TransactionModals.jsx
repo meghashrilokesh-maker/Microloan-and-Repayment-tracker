@@ -58,14 +58,19 @@ export function AddSaleModal({ isOpen, onClose }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!amount || Number(amount) <= 0) return;
-    addSale({ amount: Number(amount), category, date, note });
-    setAmount('');
-    setNote('');
-    onClose();
+    try {
+      await addSale({ amount: Number(amount), category, date, note });
+      setAmount('');
+      setNote('');
+      onClose();
+    } catch (_err) {
+      // Toast already shown in context
+    }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2825]/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
@@ -273,14 +278,19 @@ export function AddExpenseModal({ isOpen, onClose }) {
     { id: 'Other', label: t.catOther },
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!amount || Number(amount) <= 0) return;
-    addExpense({ amount: Number(amount), category, date, note });
-    setAmount('');
-    setNote('');
-    onClose();
+    try {
+      await addExpense({ amount: Number(amount), category, date, note });
+      setAmount('');
+      setNote('');
+      onClose();
+    } catch (_err) {
+      // Toast already shown in context
+    }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2825]/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
@@ -431,23 +441,27 @@ export function AddLoanModal({ isOpen, onClose }) {
   const loanAmountNum = Number(formData.amount || 0);
   const repayAmountNum = Number(formData.repaymentAmount || (loanAmountNum ? Math.round(loanAmountNum / 30) : 0));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!loanAmountNum || loanAmountNum <= 0) return;
 
-    addLoan({
-      name: formData.name || 'Microcredit Account',
-      lender: formData.lender || 'Local Bank',
-      originalAmount: loanAmountNum,
-      repaymentAmount: repayAmountNum || 500,
-      frequency: formData.frequency,
-      firstDueDate: formData.firstDueDate,
-      finalDueDate: formData.finalDueDate,
-      notes: formData.notes
-    });
-
-    onClose();
+    try {
+      await addLoan({
+        name: formData.name || 'Microcredit Account',
+        lender: formData.lender || 'Local Bank',
+        originalAmount: loanAmountNum,
+        repaymentAmount: repayAmountNum || 500,
+        frequency: formData.frequency,
+        firstDueDate: formData.firstDueDate,
+        finalDueDate: formData.finalDueDate,
+        notes: formData.notes
+      });
+      onClose();
+    } catch (_err) {
+      // Toast already shown in context
+    }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2825]/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
@@ -649,17 +663,22 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
     setShowConfirm(true);
   };
 
-  const handleConfirmedPayment = () => {
-    addRepayment({
-      loanId: currentLoan.id,
-      amount: repayAmountNum,
-      date,
-      method,
-      note
-    });
-    setShowConfirm(false);
-    onClose();
+  const handleConfirmedPayment = async () => {
+    try {
+      await addRepayment({
+        loanId: currentLoan.id,
+        amount: repayAmountNum,
+        date,
+        method,
+        note
+      });
+      setShowConfirm(false);
+      onClose();
+    } catch (_err) {
+      // Toast already shown in context
+    }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2825]/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">

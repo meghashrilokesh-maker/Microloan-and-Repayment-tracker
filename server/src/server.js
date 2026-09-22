@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import prisma from './config/db.js';
+import authRouter from './routes/auth.js';
+import eventsRouter from './routes/events.js';
+import financialsRouter from './routes/financials.js';
 
 dotenv.config();
 
@@ -32,6 +35,12 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// API Routes
+app.use('/api/auth', authRouter);
+app.use('/api', eventsRouter);
+app.use('/api', financialsRouter);
+
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ message: `Route ${req.originalUrl} not found` });
@@ -44,3 +53,6 @@ app.listen(PORT, () => {
   console.log(`🩺 Health check: http://localhost:${PORT}/api/health`);
   console.log(`=========================================`);
 });
+
+export default app;
+

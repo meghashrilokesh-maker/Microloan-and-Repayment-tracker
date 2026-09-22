@@ -15,6 +15,9 @@ import NaturalVendorImage from './NaturalVendorImage';
 export function NotificationsDrawer() {
   const { 
     t, 
+    loans,
+    activeLoans,
+    sales,
     notificationsOpen, 
     setNotificationsOpen, 
     setActiveTab, 
@@ -23,38 +26,31 @@ export function NotificationsDrawer() {
 
   if (!notificationsOpen) return null;
 
-  const remindersList = [
-    {
-      id: 'n1',
-      title: 'Repayment Due Tomorrow: ₹1,000',
-      subtitle: 'PM SVANidhi Street Vendor Microloan (SBI Bank)',
-      time: 'Tomorrow, 10:00 AM',
-      type: 'warning',
-      badge: 'Due Soon',
-      badgeColor: 'bg-[#F8ECE6] text-[#874937] border-[#F0D7CD]',
-      actionLoanId: 'l1'
-    },
-    {
-      id: 'n2',
-      title: 'Stock Advance Payment Scheduled: ₹600',
-      subtitle: 'Murthy Veggie Wholesalers (APMC Mandi)',
-      time: 'In 3 days',
-      type: 'info',
-      badge: 'Upcoming',
-      badgeColor: 'bg-[#F2F0F8] text-[#554C78] border-[#E3DFEF]',
-      actionLoanId: 'l2'
-    },
-    {
-      id: 'n3',
+  // Generate real reminders strictly from active database loans
+  const remindersList = (activeLoans || []).map((loan) => ({
+    id: `rem_${loan.id}`,
+    title: `Repayment Due: ₹${loan.repaymentAmount.toLocaleString()} (${loan.frequency})`,
+    subtitle: `${loan.name} (${loan.lender})`,
+    time: loan.nextDueDate ? `Due: ${loan.nextDueDate}` : 'Upcoming',
+    type: 'warning',
+    badge: loan.status || 'Due Soon',
+    badgeColor: 'bg-[#F8ECE6] text-[#874937] border-[#F0D7CD]',
+    actionLoanId: loan.id
+  }));
+
+  if ((loans && loans.length > 0) || (sales && sales.length > 0)) {
+    remindersList.push({
+      id: 'n_report',
       title: 'Weekly Business Summary Ready',
-      subtitle: 'Net money surplus is positive (+₹8,200). Tap to view report.',
-      time: 'Yesterday',
+      subtitle: 'View your real sales vs expenses trends and cash-flow reports.',
+      time: 'Current Period',
       type: 'success',
       badge: 'Report',
       badgeColor: 'bg-[#E9EFE8] text-[#425541] border-[#D3DFD2]',
       actionTab: 'reports'
-    }
-  ];
+    });
+  }
+
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D2825]/40 backdrop-blur-sm flex justify-end animate-in fade-in">
@@ -80,43 +76,50 @@ export function NotificationsDrawer() {
 
           {/* Reminders List */}
           <div className="space-y-3 mt-4 overflow-y-auto max-h-[75vh] pr-1">
-            {remindersList.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => {
-                  if (item.actionLoanId) {
-                    setSelectedLoanId(item.actionLoanId);
-                    setActiveTab('loans');
-                  } else if (item.actionTab) {
-                    setActiveTab(item.actionTab);
-                  }
-                  setNotificationsOpen(false);
-                }}
-                className="p-4 rounded-2xl bg-[#FAF7F2] hover:bg-[#F3EDE3] border border-[#EBE3D7] transition cursor-pointer space-y-2 touch-press"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-semibold text-xs text-[#2D2825] leading-tight">
-                    {item.title}
-                  </h3>
-                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${item.badgeColor}`}>
-                    {item.badge}
-                  </span>
+            {remindersList.length > 0 ? (
+              remindersList.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    if (item.actionLoanId) {
+                      setSelectedLoanId(item.actionLoanId);
+                      setActiveTab('loans');
+                    } else if (item.actionTab) {
+                      setActiveTab(item.actionTab);
+                    }
+                    setNotificationsOpen(false);
+                  }}
+                  className="p-4 rounded-2xl bg-[#FAF7F2] hover:bg-[#F3EDE3] border border-[#EBE3D7] transition cursor-pointer space-y-2 touch-press"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-semibold text-xs text-[#2D2825] leading-tight">
+                      {item.title}
+                    </h3>
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${item.badgeColor}`}>
+                      {item.badge}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#7C746F]">
+                    {item.subtitle}
+                  </p>
+                  <div className="flex items-center justify-between pt-1 text-[10px] text-[#8E8681] font-medium border-t border-[#EBE3D7]/60">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-[#BF745F]" />
+                      {item.time}
+                    </span>
+                    <span className="text-[#566E54] font-bold hover:underline">
+                      View Details →
+                    </span>
+                  </div>
                 </div>
-                <p className="text-[11px] text-[#7C746F]">
-                  {item.subtitle}
-                </p>
-                <div className="flex items-center justify-between pt-1 text-[10px] text-[#8E8681] font-medium border-t border-[#EBE3D7]/60">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-[#BF745F]" />
-                    {item.time}
-                  </span>
-                  <span className="text-[#566E54] font-bold hover:underline">
-                    View Details →
-                  </span>
-                </div>
+              ))
+            ) : (
+              <div className="p-6 text-center text-xs text-[#9A938E] bg-[#FAF7F2] rounded-2xl border border-[#EBE3D7]">
+                No pending loan repayments or reminders.
               </div>
-            ))}
+            )}
           </div>
+
         </div>
 
         <button

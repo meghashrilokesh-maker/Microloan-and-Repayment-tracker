@@ -17,7 +17,7 @@ function AppContent() {
   } = useApp();
 
   // App phase navigation: 'landing' | 'auth' | 'main'
-  const [appPhase, setAppPhase] = useState('landing');
+  const [appPhase, setAppPhase] = useState(() => localStorage.getItem('trackshack_token') ? 'main' : 'landing');
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
 
   // Render current tab
@@ -41,7 +41,14 @@ function AppContent() {
     return (
       <div className="relative">
         <LandingScreen
-          onGetStarted={() => setAppPhase('main')}
+          onGetStarted={() => {
+            if (localStorage.getItem('trackshack_token')) {
+              setAppPhase('main');
+            } else {
+              setAuthMode('login');
+              setAppPhase('auth');
+            }
+          }}
           onLogin={() => {
             setAuthMode('login');
             setAppPhase('auth');

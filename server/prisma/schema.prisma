@@ -17,6 +17,7 @@ model Vendor {
   businessName      String
   businessType      String      @default("General Store")
   preferredLanguage String      @default("en") // "en", "kn", "hi"
+  location          String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -31,20 +32,21 @@ model Loan {
   vendorId            String
   vendor              Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   
+  name                String      @default("Microloan")
   lenderName          String
   principalAmount     Float
-  interestRatePercent Float       // Annual flat percentage e.g. 5.0
+  interestRatePercent Float       @default(0) // Annual flat percentage e.g. 5.0
   interestType        String      @default("FLAT") // "FLAT"
-  tenureValue         Int         // e.g. 3
+  tenureValue         Int         @default(1) // e.g. 3
   tenureUnit          String      @default("MONTHS") // "DAYS", "WEEKS", "MONTHS"
-  repaymentFrequency  String      @default("DAILY")  // "DAILY", "WEEKLY", "MONTHLY"
+  repaymentFrequency  String      @default("Daily")  // "Daily", "Weekly", "Monthly"
   
-  totalInterestAmount Float       // e.g. 125.0
-  totalPayableAmount  Float       // e.g. 10125.0
-  installmentAmount   Float       // calculated fixed installment
-  startDate           DateTime
+  totalInterestAmount Float       @default(0) // e.g. 125.0
+  totalPayableAmount  Float       @default(0) // e.g. 10125.0
+  installmentAmount   Float       @default(0) // calculated fixed installment
+  startDate           DateTime    @default(now())
   endDate             DateTime?
-  status              String      @default("ACTIVE") // "ACTIVE", "CLOSED"
+  status              String      @default("On Track") // "On Track", "Due Soon", "Overdue", "Completed"
   notes               String?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
@@ -61,7 +63,8 @@ model Repayment {
   
   amountPaid  Float
   paymentDate DateTime @default(now())
-  paymentMode String   @default("CASH") // "CASH", "UPI", "BANK"
+  dateStr     String   @default("")
+  paymentMode String   @default("UPI") // "CASH", "UPI", "BANK"
   receiptNote String?
   createdAt   DateTime @default(now())
 }
@@ -72,9 +75,12 @@ model Sale {
   vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   
   date        DateTime @default(now())
+  dateStr     String   @default("")
   amount      Float
+  category    String   @default("Vegetables")
   paymentMode String   @default("CASH") // "CASH", "UPI"
   note        String?
+  time        String?
   createdAt   DateTime @default(now())
 }
 
@@ -84,8 +90,10 @@ model Expense {
   vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   
   date      DateTime @default(now())
+  dateStr   String   @default("")
   amount    Float
-  category  String   @default("GENERAL") // "INVENTORY", "RENT", "TRANSPORT", "UTILITY", "PERSONAL", "GENERAL"
+  category  String   @default("Stock / Purchases") // "INVENTORY", "RENT", "TRANSPORT", "UTILITY", "PERSONAL", "GENERAL"
   note      String?
+  time      String?
   createdAt DateTime @default(now())
 }

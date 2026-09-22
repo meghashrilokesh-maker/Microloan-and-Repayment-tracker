@@ -13,36 +13,75 @@ export default function ReportsScreen() {
   const { 
     t, 
     loans, 
+    sales,
+    expenses,
     totalLoanRemaining, 
     totalOriginalLoan,
-    totalRepaidSoFar,
-    todaySalesTotal,
-    todayExpensesTotal
+    totalRepaidSoFar
   } = useApp();
+
 
   const [filterPeriod, setFilterPeriod] = useState('Week'); // 'Week' | 'Month'
 
-  // Weekly data for clean visual charts
-  const weeklyDays = [
-    { day: 'Mon', sales: 2800, expenses: 1100 },
-    { day: 'Tue', sales: 3200, expenses: 1400 },
-    { day: 'Wed', sales: 2900, expenses: 900 },
-    { day: 'Thu', sales: 3400, expenses: 1300 },
-    { day: 'Fri', sales: 3100, expenses: 1200 },
-    { day: 'Sat', sales: 4200, expenses: 1800 },
-    { day: 'Sun (Today)', sales: todaySalesTotal || 3800, expenses: todayExpensesTotal || 1400 },
-  ];
+  // Dynamically compute the last 7 days from actual user transactions
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const now = new Date();
 
-  const maxVal = Math.max(...weeklyDays.map(d => Math.max(d.sales, d.expenses)));
+  const weeklyDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(now.getDate() - (6 - i));
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    const dayName = daysOfWeek[d.getDay()];
+    const isToday = i === 6;
 
-  const totalPeriodSales = weeklyDays.reduce((a, b) => a + b.sales, 0);
-  const totalPeriodExpenses = weeklyDays.reduce((a, b) => a + b.expenses, 0);
+    const daySales = (sales || [])
+      .filter(s => s.date === dateStr)
+      .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+
+    const dayExpenses = (expenses || [])
+      .filter(e => e.date === dateStr)
+      .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+
+    return {
+      day: isToday ? `${dayName} (Today)` : dayName,
+      sales: daySales,
+      expenses: dayExpenses,
+      dateStr
+    };
+  });
+
+  const maxVal = Math.max(1, ...weeklyDays.map(d => Math.max(d.sales, d.expenses)));
+
+  // Period totals calculated from actual database records
+  const totalPeriodSales = filterPeriod === 'Week'
+    ? weeklyDays.reduce((a, b) => a + b.sales, 0)
+    : (sales || [])
+        .filter(s => {
+          const d = new Date(s.date);
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        })
+        .reduce((a, b) => a + Number(b.amount || 0), 0);
+
+  const totalPeriodExpenses = filterPeriod === 'Week'
+    ? weeklyDays.reduce((a, b) => a + b.expenses, 0)
+    : (expenses || [])
+        .filter(e => {
+          const d = new Date(e.date);
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        })
+        .reduce((a, b) => a + Number(b.amount || 0), 0);
+
   const netSavings = totalPeriodSales - totalPeriodExpenses;
 
-  // Affordability calculation
-  const averageDailySurplus = Math.round((netSavings / 7));
-  const nextRepaymentAmount = loans.find(l => l.status !== 'Completed')?.repaymentAmount || 1000;
-  const isManageable = averageDailySurplus >= nextRepaymentAmount * 0.8;
+  // Affordability calculation from actual stored data
+  const periodDaysCount = filterPeriod === 'Week' ? 7 : Math.max(1, now.getDate());
+  const averageDailySurplus = Math.round(netSavings / periodDaysCount);
+  const activeLoans = (loans || []).filter(l => l.status !== 'Completed');
+  const nextRepaymentAmount = activeLoans[0]?.repaymentAmount || 0;
+  const isManageable = activeLoans.length === 0 ? true : (averageDailySurplus >= nextRepaymentAmount * 0.8);
 
   return (
     <div className="space-y-6 animate-in fade-in">
