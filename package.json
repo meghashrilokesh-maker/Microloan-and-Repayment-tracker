@@ -8,8 +8,7 @@
     "server:dev": "npm --prefix server run dev",
     "server:start": "npm --prefix server start",
     "client:dev": "npm --prefix client run dev",
-    "client:build": "npm --prefix client run build",
-    "build": "npm --prefix server run db:generate && npm --prefix client run build"
+    "build": "npm --prefix client run build"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

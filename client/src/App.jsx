@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { TopHeader, BottomNav } from './components/Navigation';
 import { LandingScreen, AuthScreen } from './components/OnboardingAndAuth';
 import DashboardScreen from './screens/DashboardScreen';
@@ -13,11 +14,24 @@ import { CheckCircle2 } from 'lucide-react';
 function AppContent() {
   const { 
     activeTab, 
-    toastMessage
+    toastMessage,
+    profile
   } = useApp();
 
   // App phase navigation: 'landing' | 'auth' | 'main'
-  const [appPhase, setAppPhase] = useState(() => localStorage.getItem('trackshack_token') ? 'main' : 'landing');
+  const [appPhase, setAppPhase] = useState(() => {
+    try {
+      const token = localStorage.getItem('trackshack_token');
+      const savedProfile = localStorage.getItem('trackshack_profile');
+      if (token || (savedProfile && JSON.parse(savedProfile)?.isLoggedIn)) {
+        return 'main';
+      }
+    } catch (e) {
+      // fallback to landing
+    }
+    return 'landing';
+  });
+
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
 
   // Render current tab
@@ -41,14 +55,7 @@ function AppContent() {
     return (
       <div className="relative">
         <LandingScreen
-          onGetStarted={() => {
-            if (localStorage.getItem('trackshack_token')) {
-              setAppPhase('main');
-            } else {
-              setAuthMode('login');
-              setAppPhase('auth');
-            }
-          }}
+          onGetStarted={() => setAppPhase('main')}
           onLogin={() => {
             setAuthMode('login');
             setAppPhase('auth');
@@ -83,13 +90,17 @@ function AppContent() {
     );
   }
 
+  const safeToastText = typeof toastMessage === 'object'
+    ? (toastMessage?.message || JSON.stringify(toastMessage))
+    : String(toastMessage || '');
+
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#2D2825] flex flex-col">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#2D2825]/90 backdrop-blur-md text-[#FAF7F2] text-xs font-semibold px-4 py-2.5 rounded-full shadow-soft-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2 border border-[#EBE3D7]/30">
           <CheckCircle2 className="w-4 h-4 text-[#8EAA8C] shrink-0" />
-          <span>{toastMessage}</span>
+          <span>{safeToastText}</span>
         </div>
       )}
 
@@ -132,9 +143,11 @@ function AppContent() {
 
 export function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 

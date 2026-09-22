@@ -479,7 +479,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
 
           {errorMsg && (
             <div className="p-3 rounded-2xl bg-[#FAEEF0] border border-[#F4DBDF] text-xs font-semibold text-[#8A3846] text-center animate-in fade-in">
-              {errorMsg}
+              {typeof errorMsg === 'object' ? (errorMsg.message || JSON.stringify(errorMsg)) : String(errorMsg)}
             </div>
           )}
 
