@@ -1,17 +1,23 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { translations } from '../utils/translations';
 import { authApi, financialsApi, connectSSE } from '../utils/api';
+import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 
 const AppContext = createContext();
 
 const INITIAL_PROFILE = {
+  id: 'demo-vendor-ravi',
   ownerName: 'Ravi Kumar',
+  fullName: 'Ravi Kumar',
   businessName: 'Ravi Fresh Vegetables & Fruits',
   businessType: 'Vegetables & Fruits',
   phone: '9876543210',
   language: 'en',
   location: 'City Market, Cross 4, Bengaluru',
   avatar: '/images/vendor-cottoncandy.png',
+  userType: 'vendor', // 'vendor' | 'customer'
+  productsServices: 'Potatoes, onions, tomatoes, and seasonal fresh greens',
+  interests: [],
   hasCompletedOnboarding: true,
   isLoggedIn: true
 };
@@ -299,74 +305,322 @@ export function AppProvider({ children }) {
     }
   }, [loadFinancialData]);
 
-  // Robust Authenticate user: tries backend, always succeeds gracefully locally
-  const loginUser = async (phone, password) => {
-    let userProfile = {
-      ownerName: phone === '9876543210' ? 'Ravi Kumar' : 'Vendor',
-      businessName: phone === '9876543210' ? 'Ravi Fresh Vegetables & Fruits' : 'My Business',
-      businessType: 'Vegetables & Fruits',
-      phone: phone || '9876543210',
-      language: profile.language || 'en',
-      location: 'City Market, Cross 4, Bengaluru',
+  // Helper to load and normalize user profile from Supabase Auth & public.profiles
+  const loadUserProfile = async (user) => {
+    if (!user) return null;
+    const meta = user.user_metadata || {};
+    const emailPrefix = user.email ? user.email.split('@')[0] : 'User';
+
+    let profileData = {
+      id: user.id,
+      ownerName: meta.full_name || meta.fullName || meta.ownerName || emailPrefix,
+      fullName: meta.full_name || meta.fullName || meta.ownerName || emailPrefix,
+      userType: meta.user_type || meta.userType || 'vendor',
+      businessName: meta.business_name || meta.businessName || (meta.user_type === 'customer' ? 'Customer Profile' : 'My Business'),
+      businessType: meta.business_type || meta.businessType || (meta.user_type === 'customer' ? 'Customer' : 'Vegetables & Fruits'),
+      productsServices: meta.products_services || meta.productsServices || '',
+      phone: meta.phone || '',
+      language: meta.language || profile.language || 'en',
+      location: meta.location || 'Local Market',
+      interests: Array.isArray(meta.interests) ? meta.interests : [],
       avatar: '/images/vendor-cottoncandy.png',
-      hasCompletedOnboarding: true,
+      hasCompletedOnboarding: meta.has_completed_onboarding !== false,
       isLoggedIn: true
     };
 
-    try {
-      const res = await authApi.login({ phone, password });
-      if (res && res.token) {
-        localStorage.setItem('trackshack_token', res.token);
+    // If public.profiles table exists in Supabase, load and merge rich profile
+    if (supabase) {
+      try {
+        const { data: dbProfile, error: dbErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (dbProfile && !dbErr) {
+          profileData = {
+            ...profileData,
+            ownerName: dbProfile.full_name || profileData.ownerName,
+            fullName: dbProfile.full_name || profileData.fullName,
+            userType: dbProfile.user_type || profileData.userType,
+            businessName: dbProfile.business_name || profileData.businessName,
+            businessType: dbProfile.business_type || profileData.businessType,
+            productsServices: dbProfile.products_services || profileData.productsServices,
+            phone: dbProfile.phone || profileData.phone,
+            language: dbProfile.language || profileData.language,
+            location: dbProfile.location || profileData.location,
+            interests: Array.isArray(dbProfile.interests) ? dbProfile.interests : profileData.interests,
+            hasCompletedOnboarding: dbProfile.has_completed_onboarding !== false
+          };
+        }
+      } catch (err) {
+        // Table may not exist yet in Supabase; fallback gracefully to metadata
       }
-      if (res && res.vendor) {
-        userProfile.ownerName = res.vendor.fullName || userProfile.ownerName;
-        userProfile.businessName = res.vendor.businessName || userProfile.businessName;
-        userProfile.businessType = res.vendor.businessType || userProfile.businessType;
-        userProfile.phone = res.vendor.phone || userProfile.phone;
-        userProfile.location = res.vendor.location || userProfile.location;
-      }
-    } catch (err) {
-      console.info('Server API unreachable, logging in locally:', err.message);
-      localStorage.setItem('trackshack_token', 'local_vendor_token_' + Date.now());
     }
 
-    setProfile(userProfile);
-    localStorage.setItem('trackshack_profile', JSON.stringify(userProfile));
-    showToast(`Welcome back, ${userProfile.ownerName.split(' ')[0]}!`);
-    return { success: true, profile: userProfile };
+    setProfile(profileData);
+    localStorage.setItem('trackshack_profile', JSON.stringify(profileData));
+    return profileData;
   };
 
-  // Robust Register user: tries backend, always succeeds gracefully locally
+  // Supabase Auth session listener and initial check
+  useEffect(() => {
+    if (!supabase) return;
+
+    // Check active session on mount
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        await loadUserProfile(session.user);
+        if (session.access_token) {
+          localStorage.setItem('trackshack_token', session.access_token);
+        }
+      }
+    }).catch(err => {
+      console.warn('Supabase getSession error:', err);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        await loadUserProfile(session.user);
+        if (session.access_token) {
+          localStorage.setItem('trackshack_token', session.access_token);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('trackshack_token');
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  // Robust Authenticate user: attempts Supabase Auth first, then backend, falls back gracefully locally
+  const loginUser = async (identifier, password) => {
+    let authenticatedWithSupabase = false;
+    let resolvedProfile = null;
+
+    // 1. Try Supabase Auth if configured
+    if (supabase && identifier) {
+      try {
+        const cleanIdent = identifier.trim();
+        const isEmail = cleanIdent.includes('@');
+
+        if (isEmail) {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: cleanIdent,
+            password
+          });
+          if (!error && data?.session?.user) {
+            authenticatedWithSupabase = true;
+            localStorage.setItem('trackshack_token', data.session.access_token);
+            resolvedProfile = await loadUserProfile(data.session.user);
+          }
+        } else {
+          const cleanPhone = cleanIdent.replace(/\D/g, '');
+          const formattedPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : `+${cleanPhone}`;
+          
+          // Try phone auth first
+          let res = await supabase.auth.signInWithPassword({
+            phone: formattedPhone,
+            password
+          });
+
+          // If phone provider is disabled or fails, try email-mapped format
+          if (res.error) {
+            res = await supabase.auth.signInWithPassword({
+              email: `vendor_${cleanPhone}@trackshack.local`,
+              password
+            });
+          }
+
+          if (!res.error && res.data?.session?.user) {
+            authenticatedWithSupabase = true;
+            localStorage.setItem('trackshack_token', res.data.session.access_token);
+            resolvedProfile = await loadUserProfile(res.data.session.user);
+          }
+        }
+      } catch (sbErr) {
+        console.info('Supabase sign-in note:', sbErr.message);
+      }
+    }
+
+    // 2. Synchronize with backend API or fallback locally
+    if (!authenticatedWithSupabase) {
+      const isDemo = identifier === '9876543210' || identifier === 'ravi@trackshack.demo';
+      let userProfile = {
+        id: isDemo ? 'demo-vendor-ravi' : 'local-user-' + Date.now(),
+        ownerName: isDemo ? 'Ravi Kumar' : 'Vendor',
+        fullName: isDemo ? 'Ravi Kumar' : 'Vendor',
+        userType: 'vendor',
+        businessName: isDemo ? 'Ravi Fresh Vegetables & Fruits' : 'My Business',
+        businessType: isDemo ? 'Vegetables & Fruits' : 'General Store',
+        productsServices: isDemo ? 'Potatoes, onions, tomatoes, and seasonal fresh greens' : '',
+        phone: identifier || '9876543210',
+        language: profile.language || 'en',
+        location: isDemo ? 'City Market, Cross 4, Bengaluru' : 'Local Market',
+        avatar: '/images/vendor-cottoncandy.png',
+        interests: [],
+        hasCompletedOnboarding: true,
+        isLoggedIn: true
+      };
+
+      try {
+        const res = await authApi.login({ phone: identifier, password });
+        if (res && res.token) {
+          localStorage.setItem('trackshack_token', res.token);
+        }
+        if (res && res.vendor) {
+          userProfile.ownerName = res.vendor.fullName || userProfile.ownerName;
+          userProfile.fullName = res.vendor.fullName || userProfile.fullName;
+          userProfile.businessName = res.vendor.businessName || userProfile.businessName;
+          userProfile.businessType = res.vendor.businessType || userProfile.businessType;
+          userProfile.phone = res.vendor.phone || userProfile.phone;
+          userProfile.location = res.vendor.location || userProfile.location;
+        }
+      } catch (err) {
+        console.info('Server API unreachable, logging in locally:', err.message);
+        localStorage.setItem('trackshack_token', 'local_vendor_token_' + Date.now());
+      }
+
+      setProfile(userProfile);
+      localStorage.setItem('trackshack_profile', JSON.stringify(userProfile));
+      resolvedProfile = userProfile;
+    }
+
+    showToast(`Welcome back, ${resolvedProfile.ownerName.split(' ')[0]}!`);
+    return { success: true, profile: resolvedProfile };
+  };
+
+  // Robust Register user: attempts Supabase Auth first, then backend, falls back gracefully locally
+  // NOTE: Password is NEVER saved in localStorage, user metadata, or application state.
   const registerUser = async (formData) => {
-    const userProfile = {
-      ownerName: formData.fullName || formData.ownerName || 'Vendor',
-      businessName: formData.businessName || 'My Business',
-      businessType: formData.businessType || 'Vegetables & Fruits',
-      phone: formData.phone || '9876543210',
-      language: profile.language || 'en',
+    const userType = formData.userType || 'vendor';
+    const cleanPhone = (formData.phone || '').replace(/\D/g, '');
+    const userEmail = (formData.email || (cleanPhone ? `vendor_${cleanPhone}@trackshack.local` : '')).trim();
+
+    let userProfile = {
+      id: '',
+      ownerName: formData.fullName || formData.ownerName || (userType === 'customer' ? 'Customer' : 'Vendor'),
+      fullName: formData.fullName || formData.ownerName || (userType === 'customer' ? 'Customer' : 'Vendor'),
+      userType: userType,
+      businessName: userType === 'customer' ? 'Customer Profile' : (formData.businessName || 'My Business'),
+      businessType: userType === 'customer' ? 'Customer' : (formData.businessType || 'Vegetables & Fruits'),
+      productsServices: formData.productsServices || '',
+      phone: formData.phone || '',
+      language: formData.language || profile.language || 'en',
       location: formData.location || 'Local Market',
+      interests: Array.isArray(formData.interests) ? formData.interests : [],
       avatar: '/images/vendor-cottoncandy.png',
       hasCompletedOnboarding: true,
       isLoggedIn: true
     };
 
+    let registeredWithSupabase = false;
+
+    // 1. Try Supabase Auth with email/password if configured
+    if (supabase && userEmail && formData.password) {
+      try {
+        const userMetadata = {
+          full_name: userProfile.fullName,
+          fullName: userProfile.fullName,
+          user_type: userType,
+          userType: userType,
+          phone: userProfile.phone,
+          business_name: userProfile.businessName,
+          businessName: userProfile.businessName,
+          business_type: userProfile.businessType,
+          businessType: userProfile.businessType,
+          products_services: userProfile.productsServices,
+          productsServices: userProfile.productsServices,
+          location: userProfile.location,
+          language: userProfile.language,
+          interests: userProfile.interests,
+          has_completed_onboarding: true
+        };
+
+        const { data, error } = await supabase.auth.signUp({
+          email: userEmail,
+          password: formData.password,
+          options: { data: userMetadata }
+        });
+
+        if (!error && data?.user) {
+          registeredWithSupabase = true;
+          userProfile.id = data.user.id;
+          if (data.session?.access_token) {
+            localStorage.setItem('trackshack_token', data.session.access_token);
+          }
+
+          // Try persisting into public.profiles table in Supabase
+          try {
+            await supabase.from('profiles').upsert({
+              id: data.user.id,
+              user_type: userProfile.userType,
+              full_name: userProfile.fullName,
+              phone: userProfile.phone,
+              business_name: userProfile.userType === 'vendor' ? userProfile.businessName : null,
+              business_type: userProfile.userType === 'vendor' ? userProfile.businessType : null,
+              products_services: userProfile.userType === 'vendor' ? userProfile.productsServices : null,
+              location: userProfile.location,
+              language: userProfile.language,
+              interests: userProfile.interests,
+              has_completed_onboarding: true,
+              updated_at: new Date().toISOString()
+            });
+          } catch (dbErr) {
+            console.info('Profiles table sync skipped or not created yet in Supabase:', dbErr.message);
+          }
+        } else if (error) {
+          console.warn('Supabase signUp warning:', error.message);
+        }
+      } catch (sbErr) {
+        console.info('Supabase registration note:', sbErr.message);
+      }
+    }
+
+    // 2. Synchronize with backend API or fallback locally
     try {
-      const res = await authApi.register(formData);
-      if (res && res.token) {
+      const res = await authApi.register({
+        phone: userProfile.phone || userEmail,
+        password: formData.password,
+        fullName: userProfile.fullName,
+        businessName: userProfile.businessName,
+        businessType: userProfile.businessType,
+        location: userProfile.location,
+        preferredLanguage: userProfile.language
+      });
+      if (res && res.token && !registeredWithSupabase) {
         localStorage.setItem('trackshack_token', res.token);
       }
       if (res && res.vendor) {
         userProfile.ownerName = res.vendor.fullName || userProfile.ownerName;
+        userProfile.fullName = res.vendor.fullName || userProfile.fullName;
       }
     } catch (err) {
-      console.info('Server API unreachable, registering locally:', err.message);
-      localStorage.setItem('trackshack_token', 'local_vendor_token_' + Date.now());
+      if (!registeredWithSupabase) {
+        console.info('Server API unreachable, registering locally:', err.message);
+        localStorage.setItem('trackshack_token', 'local_vendor_token_' + Date.now());
+      }
     }
 
     setProfile(userProfile);
     localStorage.setItem('trackshack_profile', JSON.stringify(userProfile));
     showToast(`Account created! Welcome, ${userProfile.ownerName.split(' ')[0]}!`);
     return { success: true, profile: userProfile };
+  };
+
+  const logoutUser = async () => {
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (err) {
+      console.warn('Supabase sign out warning:', err);
+    }
+    localStorage.removeItem('trackshack_token');
+    setProfile(prev => ({ ...prev, isLoggedIn: false }));
+    showToast('Logged out successfully');
   };
 
   // Local-first Actions (with safe non-blocking server persistence)
@@ -559,8 +813,11 @@ export function AppProvider({ children }) {
         resetToDemo,
         loginUser,
         registerUser,
+        logoutUser,
         loadFinancialData,
-        loadingFinancials
+        loadingFinancials,
+        supabase,
+        isSupabaseConfigured
       }}
     >
       {children}
