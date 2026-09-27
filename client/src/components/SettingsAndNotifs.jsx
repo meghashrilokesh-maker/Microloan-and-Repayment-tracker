@@ -6,7 +6,8 @@ import {
   Store, 
   Languages, 
   RotateCcw, 
-  IndianRupee 
+  IndianRupee,
+  LogOut
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BusinessProfileSetupModal } from './OnboardingAndAuth';
@@ -140,7 +141,8 @@ export function ProfileSettingsModal() {
     setLanguage, 
     profileModalOpen, 
     setProfileModalOpen, 
-    resetToDemo
+    resetToDemo,
+    logoutUser
   } = useApp();
 
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -258,13 +260,28 @@ export function ProfileSettingsModal() {
                 setProfileModalOpen(false);
               }
             }}
+            className="w-full p-3.5 rounded-2xl bg-[#FAF7F2] hover:bg-[#F3EDE3] border border-[#EBE3D7] text-[#605955] flex items-center justify-between transition font-semibold touch-press"
+          >
+            <div className="flex items-center gap-2">
+              <RotateCcw className="w-4 h-4 text-[#8E8681]" />
+              <span>{t.resetDemo}</span>
+            </div>
+            <span className="text-[10px] text-[#7C746F] font-bold">Restore Sample</span>
+          </button>
+
+          {/* Logout Action Button */}
+          <button
+            onClick={() => {
+              setProfileModalOpen(false);
+              logoutUser();
+            }}
             className="w-full p-3.5 rounded-2xl bg-[#FCF7F4] hover:bg-[#F8ECE6] border border-[#F0D7CD] text-[#874937] flex items-center justify-between transition font-semibold touch-press"
           >
             <div className="flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 text-[#BF745F]" />
-              <span>{t.resetDemo}</span>
+              <LogOut className="w-4 h-4 text-[#BF745F]" />
+              <span>Log Out</span>
             </div>
-            <span className="text-[10px] text-[#874937] font-bold">Restore Sample</span>
+            <span className="text-[10px] text-[#BF745F] font-bold">Sign Out →</span>
           </button>
         </div>
 

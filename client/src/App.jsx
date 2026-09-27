@@ -34,6 +34,30 @@ function AppContent() {
 
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
 
+  // Back button protection & automatic logout redirect to Login screen
+  React.useEffect(() => {
+    if (!profile.isLoggedIn) {
+      if (appPhase === 'main') {
+        setAuthMode('login');
+        setAppPhase('auth');
+      }
+      try {
+        window.history.replaceState(null, '', window.location.pathname);
+      } catch (e) {}
+    }
+  }, [profile.isLoggedIn, appPhase]);
+
+  React.useEffect(() => {
+    const handlePopState = () => {
+      if (!profile.isLoggedIn && appPhase === 'main') {
+        setAuthMode('login');
+        setAppPhase('auth');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [profile.isLoggedIn, appPhase]);
+
   // Render current tab
   const renderCurrentTab = () => {
     switch (activeTab) {
@@ -80,10 +104,10 @@ function AppContent() {
     );
   }
 
-  if (appPhase === 'auth') {
+  if (appPhase === 'auth' || (!profile.isLoggedIn && appPhase === 'main')) {
     return (
       <AuthScreen
-        initialMode={authMode}
+        initialMode={authMode || 'login'}
         onLoginSuccess={() => setAppPhase('main')}
         onBackToLanding={() => setAppPhase('landing')}
       />

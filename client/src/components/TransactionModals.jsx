@@ -15,6 +15,7 @@ import { useApp } from '../context/AppContext';
 export function AddSaleModal({ isOpen, onClose }) {
   const { t, addSale } = useApp();
   const [amount, setAmount] = useState('');
+  const [customerName, setCustomerName] = useState('');
   const [category, setCategory] = useState('Vegetables');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
@@ -62,8 +63,9 @@ export function AddSaleModal({ isOpen, onClose }) {
     e.preventDefault();
     if (!amount || Number(amount) <= 0) return;
     try {
-      await addSale({ amount: Number(amount), category, date, note });
+      await addSale({ amount: Number(amount), category, customerName, date, note });
       setAmount('');
+      setCustomerName('');
       setNote('');
       onClose();
     } catch (_err) {
@@ -228,6 +230,20 @@ export function AddSaleModal({ isOpen, onClose }) {
             </div>
           </div>
 
+          {/* Customer / Counterparty (Optional) */}
+          <div>
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
+              Customer / Counterparty (Optional)
+            </label>
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="e.g. Ravi Stores, Ramesh, Walk-in"
+              className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#6B8569] outline-none text-[#2D2825]"
+            />
+          </div>
+
           {/* Note */}
           <div>
             <label className="block text-xs font-semibold text-[#48433F] mb-1">
@@ -261,6 +277,7 @@ export function AddSaleModal({ isOpen, onClose }) {
 export function AddExpenseModal({ isOpen, onClose }) {
   const { t, addExpense } = useApp();
   const [amount, setAmount] = useState('');
+  const [customerName, setCustomerName] = useState('');
   const [category, setCategory] = useState('Stock / Purchases');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
@@ -282,8 +299,9 @@ export function AddExpenseModal({ isOpen, onClose }) {
     e.preventDefault();
     if (!amount || Number(amount) <= 0) return;
     try {
-      await addExpense({ amount: Number(amount), category, date, note });
+      await addExpense({ amount: Number(amount), category, customerName, date, note });
       setAmount('');
+      setCustomerName('');
       setNote('');
       onClose();
     } catch (_err) {
@@ -390,6 +408,20 @@ export function AddExpenseModal({ isOpen, onClose }) {
                 required
               />
             </div>
+          </div>
+
+          {/* Supplier / Store (Optional) */}
+          <div>
+            <label className="block text-xs font-semibold text-[#48433F] mb-1">
+              Supplier / Store (Optional)
+            </label>
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="e.g. APMC Mandi, Wholesale Vendor"
+              className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-medium focus:bg-white focus:border-[#BF745F] outline-none text-[#2D2825]"
+            />
           </div>
 
           {/* Note */}

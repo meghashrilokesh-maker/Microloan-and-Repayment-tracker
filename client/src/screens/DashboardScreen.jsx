@@ -7,7 +7,8 @@ import {
   CheckCircle2, 
   ChevronRight, 
   Sparkles, 
-  Wallet 
+  Wallet,
+  Landmark
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import NaturalVendorImage from '../components/NaturalVendorImage';
@@ -30,6 +31,10 @@ export default function DashboardScreen() {
     nextRepaymentLoan,
     sales,
     expenses,
+    loans,
+    loadingFinancials,
+    financialsError,
+    loadTransactions,
     setActiveTab,
     setSelectedLoanId
   } = useApp();
@@ -48,10 +53,16 @@ export default function DashboardScreen() {
     return t.greetingEvening;
   };
 
-  // Recent transactions combined (sales & expenses)
+  // Recent transactions combined (sales, expenses & loans)
   const recentCombined = [
-    ...sales.slice(0, 4).map(s => ({ ...s, txType: 'sale' })),
-    ...expenses.slice(0, 4).map(e => ({ ...e, txType: 'expense' }))
+    ...(sales || []).slice(0, 5).map(s => ({ ...s, txType: 'sale' })),
+    ...(expenses || []).slice(0, 5).map(e => ({ ...e, txType: 'expense' })),
+    ...(loans || []).slice(0, 5).map(l => ({
+      ...l,
+      amount: l.originalAmount || l.amount,
+      customer_name: l.lender || l.name || l.customer_name,
+      txType: 'loan'
+    }))
   ].sort((a, b) => new Date(b.date + ' ' + (b.time || '00:00')) - new Date(a.date + ' ' + (a.time || '00:00')))
   .slice(0, 5);
 
@@ -360,38 +371,70 @@ export default function DashboardScreen() {
               </button>
             </div>
 
-            {recentCombined.length > 0 ? (
+            {loadingFinancials ? (
+              <div className="py-8 text-center text-xs text-[#7C746F] space-y-2">
+                <div className="w-5 h-5 border-2 border-[#566E54] border-t-transparent rounded-full animate-spin mx-auto" />
+                <p>Loading transactions...</p>
+              </div>
+            ) : financialsError ? (
+              <div className="py-6 text-center text-xs text-[#BF745F] space-y-2 bg-[#FCF7F4] rounded-2xl p-4 border border-[#F0D7CD]">
+                <p className="font-medium">{financialsError}</p>
+                <button
+                  type="button"
+                  onClick={() => profile.id && loadTransactions(profile.id)}
+                  className="px-3 py-1 bg-white hover:bg-[#F3EDE3] border border-[#EBE3D7] rounded-full text-xs font-semibold text-[#2D2825] transition shadow-soft"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : recentCombined.length > 0 ? (
               <div className="divide-y divide-[#F3EDE3]">
                 {recentCombined.map((tx) => (
                   <div key={tx.id} className="py-2.5 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2.5">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold shrink-0 ${
-                        tx.txType === 'sale' ? 'bg-[#E9EFE8] text-[#425541]' : 'bg-[#F8ECE6] text-[#874937]'
+                        tx.txType === 'sale' ? 'bg-[#E9EFE8] text-[#425541]' : tx.txType === 'loan' ? 'bg-[#F2F0F8] text-[#554C78]' : 'bg-[#F8ECE6] text-[#874937]'
                       }`}>
-                        {tx.txType === 'sale' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                        {tx.txType === 'sale' ? <TrendingUp className="w-4 h-4" /> : tx.txType === 'loan' ? <Landmark className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                       </div>
                       <div>
                         <span className="font-semibold text-[#2D2825] block truncate max-w-[130px] sm:max-w-[160px]">
-                          {tx.category}
+                          {tx.customer_name || tx.customerName || tx.lender || tx.category || tx.name}
                         </span>
                         <span className="text-[10px] text-[#7C746F]">
-                          {tx.time || tx.date} • {tx.note || (tx.txType === 'sale' ? 'Sale' : 'Cost')}
+                          {tx.time || tx.date} • {tx.note || tx.notes || (tx.txType === 'sale' ? 'Sale' : tx.txType === 'loan' ? 'Loan' : 'Expense')}
                         </span>
                       </div>
                     </div>
 
                     <span className={`font-serif font-bold text-sm shrink-0 ${
-                      tx.txType === 'sale' ? 'text-[#566E54]' : 'text-[#BF745F]'
+                      tx.txType === 'sale' ? 'text-[#566E54]' : tx.txType === 'loan' ? 'text-[#554C78]' : 'text-[#BF745F]'
                     }`}>
-                      {tx.txType === 'sale' ? '+' : '-'}₹{Number(tx.amount).toLocaleString()}
+                      {tx.txType === 'sale' ? '+' : tx.txType === 'loan' ? '₹' : '-'}₹{Number(tx.amount).toLocaleString()}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-[#9A938E] py-4 text-center">
-                {t.noTransactionsYet}
-              </p>
+              <div className="py-8 text-center space-y-3">
+                <div className="w-10 h-10 rounded-full bg-[#FAF7F2] border border-[#EBE3D7] flex items-center justify-center mx-auto text-[#7C746F]">
+                  <Wallet className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#2D2825]">No transactions yet</p>
+                  <p className="text-xs text-[#7C746F] mt-0.5 max-w-[240px] mx-auto">
+                    Add your first transaction to start tracking your activity.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSaleOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#566E54] hover:bg-[#425541] text-white text-xs font-bold shadow-soft transition active:scale-95 touch-press"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add your first transaction</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -118,9 +118,17 @@ export function AppProvider({ children }) {
     return INITIAL_PROFILE;
   });
 
-  // Safe Financial Parsers: fallback gracefully to rich demo dataset
+  // Safe Financial Parsers: real users start with empty records, demo user uses rich sample data
   const [sales, setSales] = useState(() => {
     try {
+      const savedProfile = localStorage.getItem('trackshack_profile');
+      if (savedProfile) {
+        const p = JSON.parse(savedProfile);
+        if (p?.id && p.id !== 'demo-vendor-ravi') {
+          const userSaved = localStorage.getItem(`trackshack_sales_${p.id}`);
+          return userSaved ? JSON.parse(userSaved) : [];
+        }
+      }
       const saved = localStorage.getItem('trackshack_sales');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -136,6 +144,14 @@ export function AppProvider({ children }) {
 
   const [expenses, setExpenses] = useState(() => {
     try {
+      const savedProfile = localStorage.getItem('trackshack_profile');
+      if (savedProfile) {
+        const p = JSON.parse(savedProfile);
+        if (p?.id && p.id !== 'demo-vendor-ravi') {
+          const userSaved = localStorage.getItem(`trackshack_expenses_${p.id}`);
+          return userSaved ? JSON.parse(userSaved) : [];
+        }
+      }
       const saved = localStorage.getItem('trackshack_expenses');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -151,6 +167,14 @@ export function AppProvider({ children }) {
 
   const [loans, setLoans] = useState(() => {
     try {
+      const savedProfile = localStorage.getItem('trackshack_profile');
+      if (savedProfile) {
+        const p = JSON.parse(savedProfile);
+        if (p?.id && p.id !== 'demo-vendor-ravi') {
+          const userSaved = localStorage.getItem(`trackshack_loans_${p.id}`);
+          return userSaved ? JSON.parse(userSaved) : [];
+        }
+      }
       const saved = localStorage.getItem('trackshack_loans');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -165,6 +189,7 @@ export function AppProvider({ children }) {
   });
 
   const [loadingFinancials, setLoadingFinancials] = useState(false);
+  const [financialsError, setFinancialsError] = useState(null);
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'sales' | 'expenses' | 'loans' | 'reports'
   const [selectedLoanId, setSelectedLoanId] = useState(null);
   const [isMobileFrameView, setIsMobileFrameView] = useState(false);
@@ -196,27 +221,39 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem('trackshack_sales', JSON.stringify(sales));
+      if (profile.id && profile.id !== 'demo-vendor-ravi') {
+        localStorage.setItem(`trackshack_sales_${profile.id}`, JSON.stringify(sales));
+      } else {
+        localStorage.setItem('trackshack_sales', JSON.stringify(sales));
+      }
     } catch (e) {
       console.warn('Could not persist sales:', e);
     }
-  }, [sales]);
+  }, [sales, profile.id]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('trackshack_expenses', JSON.stringify(expenses));
+      if (profile.id && profile.id !== 'demo-vendor-ravi') {
+        localStorage.setItem(`trackshack_expenses_${profile.id}`, JSON.stringify(expenses));
+      } else {
+        localStorage.setItem('trackshack_expenses', JSON.stringify(expenses));
+      }
     } catch (e) {
       console.warn('Could not persist expenses:', e);
     }
-  }, [expenses]);
+  }, [expenses, profile.id]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('trackshack_loans', JSON.stringify(loans));
+      if (profile.id && profile.id !== 'demo-vendor-ravi') {
+        localStorage.setItem(`trackshack_loans_${profile.id}`, JSON.stringify(loans));
+      } else {
+        localStorage.setItem('trackshack_loans', JSON.stringify(loans));
+      }
     } catch (e) {
       console.warn('Could not persist loans:', e);
     }
-  }, [loans]);
+  }, [loans, profile.id]);
 
   const t = translations[profile.language] || translations.en;
 
@@ -305,6 +342,94 @@ export function AppProvider({ children }) {
     }
   }, [loadFinancialData]);
 
+  // Persistent Supabase transaction loader for authenticated users
+  const loadTransactions = useCallback(async (userId) => {
+    if (!userId || userId === 'demo-vendor-ravi') return;
+    if (!supabase) return;
+
+    setLoadingFinancials(true);
+    setFinancialsError(null);
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        if (error.code === '42P01') {
+          console.info('Supabase transactions table not yet initialized.');
+          setFinancialsError('Transactions table pending initialization in Supabase.');
+        } else {
+          console.warn('Supabase fetch transactions error:', error.message);
+          setFinancialsError('Could not load transactions from cloud database.');
+        }
+        return;
+      }
+
+      const txList = data || [];
+      const fetchedSales = txList
+        .filter(t => t.type === 'sale')
+        .map(t => ({
+          id: t.id,
+          amount: Number(t.amount),
+          category: t.category || 'Vegetables',
+          customer_name: t.customer_name || '',
+          customerName: t.customer_name || '',
+          note: t.description || '',
+          date: t.date,
+          time: t.time || ''
+        }));
+
+      const fetchedExpenses = txList
+        .filter(t => t.type === 'expense')
+        .map(t => ({
+          id: t.id,
+          amount: Number(t.amount),
+          category: t.category || 'Stock / Purchases',
+          customer_name: t.customer_name || '',
+          customerName: t.customer_name || '',
+          note: t.description || '',
+          date: t.date,
+          time: t.time || ''
+        }));
+
+      const fetchedLoans = txList
+        .filter(t => t.type === 'loan')
+        .map(t => {
+          const meta = t.metadata || {};
+          return {
+            id: t.id,
+            name: meta.name || t.category || 'Microloan',
+            lender: t.customer_name || meta.lender || 'Local Lender',
+            customer_name: t.customer_name || meta.lender || 'Local Lender',
+            customerName: t.customer_name || meta.lender || 'Local Lender',
+            originalAmount: Number(meta.original_amount || t.amount),
+            totalRepaid: Number(meta.total_repaid || 0),
+            remainingAmount: Number(meta.remaining_amount !== undefined ? meta.remaining_amount : t.amount),
+            repaymentAmount: Number(meta.repayment_amount || Math.round(Number(t.amount) / 10)),
+            frequency: meta.frequency || 'Daily',
+            firstDueDate: meta.first_due_date || t.date,
+            nextDueDate: meta.next_due_date || t.date,
+            finalDueDate: meta.final_due_date || '',
+            status: meta.status || 'On Track',
+            notes: t.description || meta.notes || '',
+            repayments: Array.isArray(meta.repayments) ? meta.repayments : []
+          };
+        });
+
+      setSales(fetchedSales);
+      setExpenses(fetchedExpenses);
+      setLoans(fetchedLoans);
+    } catch (err) {
+      console.warn('Error loading user transactions from Supabase:', err);
+      setFinancialsError('Failed to load transactions.');
+    } finally {
+      setLoadingFinancials(false);
+    }
+  }, []);
+
   // Helper to load and normalize user profile from Supabase Auth & public.profiles
   const loadUserProfile = async (user) => {
     if (!user) return null;
@@ -360,6 +485,12 @@ export function AppProvider({ children }) {
 
     setProfile(profileData);
     localStorage.setItem('trackshack_profile', JSON.stringify(profileData));
+
+    // Load real transactions for authenticated user
+    if (user.id && user.id !== 'demo-vendor-ravi') {
+      loadTransactions(user.id);
+    }
+
     return profileData;
   };
 
@@ -486,6 +617,19 @@ export function AppProvider({ children }) {
       setProfile(userProfile);
       localStorage.setItem('trackshack_profile', JSON.stringify(userProfile));
       resolvedProfile = userProfile;
+      if (isDemo) {
+        setSales(INITIAL_SALES);
+        setExpenses(INITIAL_EXPENSES);
+        setLoans(INITIAL_LOANS);
+      } else {
+        setSales([]);
+        setExpenses([]);
+        setLoans([]);
+      }
+    }
+
+    if (resolvedProfile?.id && resolvedProfile.id !== 'demo-vendor-ravi') {
+      loadTransactions(resolvedProfile.id);
     }
 
     showToast(`Welcome back, ${resolvedProfile.ownerName.split(' ')[0]}!`);
@@ -604,6 +748,10 @@ export function AppProvider({ children }) {
       }
     }
 
+    // Newly registered real account starts with 0 transactions
+    setSales([]);
+    setExpenses([]);
+    setLoans([]);
     setProfile(userProfile);
     localStorage.setItem('trackshack_profile', JSON.stringify(userProfile));
     showToast(`Account created! Welcome, ${userProfile.ownerName.split(' ')[0]}!`);
@@ -619,57 +767,182 @@ export function AppProvider({ children }) {
       console.warn('Supabase sign out warning:', err);
     }
     localStorage.removeItem('trackshack_token');
-    setProfile(prev => ({ ...prev, isLoggedIn: false }));
+    localStorage.removeItem('trackshack_profile');
+
+    // Clean active transactions from memory
+    setSales([]);
+    setExpenses([]);
+    setLoans([]);
+    setFinancialsError(null);
+
+    setProfile({
+      id: '',
+      ownerName: 'Vendor',
+      fullName: 'Vendor',
+      userType: 'vendor',
+      businessName: 'My Business',
+      businessType: 'General Store',
+      productsServices: '',
+      phone: '',
+      language: profile.language || 'en',
+      location: '',
+      avatar: '/images/vendor-cottoncandy.png',
+      interests: [],
+      hasCompletedOnboarding: false,
+      isLoggedIn: false
+    });
+
+    try {
+      window.history.replaceState(null, '', window.location.pathname);
+    } catch (e) {}
+
     showToast('Logged out successfully');
   };
 
-  // Local-first Actions (with safe non-blocking server persistence)
+  // Local-first Actions with direct Supabase cloud persistence
   const addSale = async (saleData) => {
-    const newEntry = {
+    const isRealUser = profile.id && profile.id !== 'demo-vendor-ravi';
+    const cleanAmount = Number(saleData.amount);
+    const dateStr = saleData.date || todayStr;
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const custName = saleData.customerName || saleData.customer_name || '';
+
+    let newEntry = {
       id: 's_' + Date.now(),
-      amount: Number(saleData.amount),
+      amount: cleanAmount,
       category: saleData.category || 'Vegetables',
+      customer_name: custName,
+      customerName: custName,
       note: saleData.note || '',
-      date: saleData.date || todayStr,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      date: dateStr,
+      time: timeStr
     };
+
+    if (isRealUser && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: profile.id,
+            type: 'sale',
+            amount: cleanAmount,
+            category: saleData.category || 'Vegetables',
+            customer_name: custName || null,
+            date: dateStr,
+            time: timeStr,
+            description: saleData.note || null,
+            metadata: { payment_mode: saleData.paymentMode || 'CASH' }
+          })
+          .select()
+          .single();
+
+        if (!error && data) {
+          newEntry = {
+            id: data.id,
+            amount: Number(data.amount),
+            category: data.category || 'Vegetables',
+            customer_name: data.customer_name || '',
+            customerName: data.customer_name || '',
+            note: data.description || '',
+            date: data.date,
+            time: data.time || timeStr
+          };
+        } else if (error) {
+          console.warn('Supabase insert sale warning:', error.message);
+        }
+      } catch (sbErr) {
+        console.warn('Supabase insert sale exception:', sbErr);
+      }
+    }
+
     setSales(prev => [newEntry, ...prev]);
     showToast(`✓ ₹${newEntry.amount} ${t.saleSuccess}`);
 
     try {
       financialsApi.addSale(saleData).catch(() => {});
-    } catch (e) {
-      // non-fatal
-    }
+    } catch (e) {}
+
     return newEntry;
   };
 
   const addExpense = async (expenseData) => {
-    const newEntry = {
+    const isRealUser = profile.id && profile.id !== 'demo-vendor-ravi';
+    const cleanAmount = Number(expenseData.amount);
+    const dateStr = expenseData.date || todayStr;
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const custName = expenseData.customerName || expenseData.customer_name || '';
+
+    let newEntry = {
       id: 'e_' + Date.now(),
-      amount: Number(expenseData.amount),
+      amount: cleanAmount,
       category: expenseData.category || 'Stock / Purchases',
+      customer_name: custName,
+      customerName: custName,
       note: expenseData.note || '',
-      date: expenseData.date || todayStr,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      date: dateStr,
+      time: timeStr
     };
+
+    if (isRealUser && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: profile.id,
+            type: 'expense',
+            amount: cleanAmount,
+            category: expenseData.category || 'Stock / Purchases',
+            customer_name: custName || null,
+            date: dateStr,
+            time: timeStr,
+            description: expenseData.note || null,
+            metadata: { payment_mode: expenseData.paymentMode || 'CASH' }
+          })
+          .select()
+          .single();
+
+        if (!error && data) {
+          newEntry = {
+            id: data.id,
+            amount: Number(data.amount),
+            category: data.category || 'Stock / Purchases',
+            customer_name: data.customer_name || '',
+            customerName: data.customer_name || '',
+            note: data.description || '',
+            date: data.date,
+            time: data.time || timeStr
+          };
+        } else if (error) {
+          console.warn('Supabase insert expense warning:', error.message);
+        }
+      } catch (sbErr) {
+        console.warn('Supabase insert expense exception:', sbErr);
+      }
+    }
+
     setExpenses(prev => [newEntry, ...prev]);
     showToast(`✓ ₹${newEntry.amount} ${t.expenseSuccess}`);
 
     try {
       financialsApi.addExpense(expenseData).catch(() => {});
-    } catch (e) {
-      // non-fatal
-    }
+    } catch (e) {}
+
     return newEntry;
   };
 
   const addLoan = async (loanData) => {
-    const amount = Number(loanData.amount);
-    const newLoan = {
+    const isRealUser = profile.id && profile.id !== 'demo-vendor-ravi';
+    const amount = Number(loanData.amount || loanData.originalAmount);
+    const dateStr = loanData.firstDueDate || todayStr;
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const lenderName = loanData.lender || loanData.customerName || loanData.customer_name || 'Local Lender';
+
+    let newLoan = {
       id: 'l_' + Date.now(),
       name: loanData.name || 'Microloan',
-      lender: loanData.lender || 'Local Bank',
+      lender: lenderName,
+      customer_name: lenderName,
+      customerName: lenderName,
       originalAmount: amount,
       totalRepaid: 0,
       remainingAmount: amount,
@@ -680,16 +953,59 @@ export function AppProvider({ children }) {
       finalDueDate: loanData.finalDueDate || '',
       status: 'On Track',
       notes: loanData.notes || '',
+      date: dateStr,
+      time: timeStr,
       repayments: []
     };
+
+    if (isRealUser && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: profile.id,
+            type: 'loan',
+            amount: amount,
+            category: loanData.name || 'Microloan',
+            customer_name: lenderName,
+            date: dateStr,
+            time: timeStr,
+            description: loanData.notes || null,
+            metadata: {
+              name: loanData.name || 'Microloan',
+              lender: lenderName,
+              original_amount: amount,
+              total_repaid: 0,
+              remaining_amount: amount,
+              repayment_amount: Number(loanData.repaymentAmount || (amount / 10)),
+              frequency: loanData.frequency || 'Daily',
+              first_due_date: loanData.firstDueDate || todayStr,
+              next_due_date: loanData.firstDueDate || todayStr,
+              final_due_date: loanData.finalDueDate || '',
+              status: 'On Track',
+              repayments: []
+            }
+          })
+          .select()
+          .single();
+
+        if (!error && data) {
+          newLoan.id = data.id;
+        } else if (error) {
+          console.warn('Supabase insert loan warning:', error.message);
+        }
+      } catch (sbErr) {
+        console.warn('Supabase insert loan exception:', sbErr);
+      }
+    }
+
     setLoans(prev => [newLoan, ...prev]);
     showToast(`✓ ${newLoan.name} added successfully!`);
 
     try {
       financialsApi.addLoan(loanData).catch(() => {});
-    } catch (e) {
-      // non-fatal
-    }
+    } catch (e) {}
+
     return newLoan;
   };
 
@@ -733,13 +1049,13 @@ export function AppProvider({ children }) {
 
     try {
       financialsApi.addRepayment({ loanId, amount: repayNum, date, method, note }).catch(() => {});
-    } catch (e) {
-      // non-fatal
-    }
+    } catch (e) {}
+
     return updatedLoan;
   };
 
   const deleteTransaction = async (type, id) => {
+    const isRealUser = profile.id && profile.id !== 'demo-vendor-ravi';
     if (type === 'sale') {
       setSales(prev => prev.filter(s => s.id !== id));
       showToast('Sale deleted');
@@ -748,15 +1064,21 @@ export function AppProvider({ children }) {
       showToast('Expense deleted');
     }
 
+    if (isRealUser && supabase && id && !String(id).startsWith('s_') && !String(id).startsWith('e_')) {
+      try {
+        await supabase.from('transactions').delete().eq('id', id).eq('user_id', profile.id);
+      } catch (err) {
+        console.warn('Supabase delete transaction error:', err);
+      }
+    }
+
     try {
       if (type === 'sale') {
         financialsApi.deleteSale(id).catch(() => {});
       } else {
         financialsApi.deleteExpense(id).catch(() => {});
       }
-    } catch (e) {
-      // non-fatal
-    }
+    } catch (e) {}
   };
 
   const resetToDemo = async () => {
@@ -815,7 +1137,9 @@ export function AppProvider({ children }) {
         registerUser,
         logoutUser,
         loadFinancialData,
+        loadTransactions,
         loadingFinancials,
+        financialsError,
         supabase,
         isSupabaseConfigured
       }}
