@@ -639,6 +639,7 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
   const { t, loans, addRepayment, showToast } = useApp();
   const activeLoans = loans.filter(l => l.status !== 'Completed');
 
+  const isFixedLoan = Boolean(defaultLoanId);
   const [selectedLoanId, setSelectedLoanId] = useState(() => defaultLoanId || (activeLoans[0]?.id || ''));
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -646,9 +647,16 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
   const [note, setNote] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const handleClose = () => {
+    setAmount('');
+    setShowConfirm(false);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
-  const currentLoan = loans.find(l => l.id === selectedLoanId) || activeLoans[0];
+  const currentLoanId = isFixedLoan ? defaultLoanId : (selectedLoanId || activeLoans[0]?.id);
+  const currentLoan = loans.find(l => l.id === currentLoanId) || activeLoans[0];
   const repayAmountNum = Number(amount || 0);
   const remainingAfterPayment = currentLoan ? Math.max(0, currentLoan.remainingAmount - repayAmountNum) : 0;
   const isOverpaying = currentLoan && repayAmountNum > currentLoan.remainingAmount;
@@ -672,8 +680,7 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
         method,
         note
       });
-      setShowConfirm(false);
-      onClose();
+      handleClose();
     } catch (_err) {
       // Toast already shown in context
     }
@@ -695,7 +702,7 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-8 h-8 rounded-full bg-[#FAF7F2] text-[#7C746F] hover:bg-[#F3EDE3] border border-[#EBE3D7] flex items-center justify-center text-xs font-bold transition touch-press"
           >
             ✕
@@ -754,19 +761,39 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
             {/* Loan selector */}
             <div>
               <label className="block text-xs font-semibold text-[#48433F] mb-1">
-                Select Loan
+                {isFixedLoan ? 'Loan' : 'Select Loan'}
               </label>
-              <select
-                value={selectedLoanId}
-                onChange={(e) => setSelectedLoanId(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-semibold text-[#2D2825] focus:bg-white focus:border-[#BF745F] outline-none"
-              >
-                {activeLoans.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name} (Remaining: ₹{l.remainingAmount.toLocaleString()})
-                  </option>
-                ))}
-              </select>
+              {isFixedLoan ? (
+                <div className="relative">
+                  <select
+                    disabled
+                    value={currentLoan?.id || ''}
+                    aria-label="Loan"
+                    className="w-full px-3.5 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-semibold text-[#2D2825] cursor-not-allowed appearance-none opacity-100"
+                  >
+                    {currentLoan && (
+                      <option value={currentLoan.id}>
+                        {currentLoan.name} (Remaining: ₹{currentLoan.remainingAmount.toLocaleString()})
+                      </option>
+                    )}
+                  </select>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-[#554C78] bg-[#F2F0F8] px-2 py-0.5 rounded-full border border-[#E3DFEF] pointer-events-none">
+                    Locked
+                  </span>
+                </div>
+              ) : (
+                <select
+                  value={selectedLoanId}
+                  onChange={(e) => setSelectedLoanId(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-xl text-xs font-semibold text-[#2D2825] focus:bg-white focus:border-[#BF745F] outline-none"
+                >
+                  {activeLoans.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name} (Remaining: ₹{l.remainingAmount.toLocaleString()})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Repayment Amount */}

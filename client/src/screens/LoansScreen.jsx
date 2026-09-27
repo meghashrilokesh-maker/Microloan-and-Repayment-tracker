@@ -75,7 +75,6 @@ export default function LoansScreen() {
   const [activeFilter, setActiveFilter] = useState('Active'); // 'Active' | 'Completed' | 'Overdue'
   const [addLoanOpen, setAddLoanOpen] = useState(false);
   const [addRepayOpen, setAddRepayOpen] = useState(false);
-  const [repayTargetLoanId, setRepayTargetLoanId] = useState(null);
   const [selectedScheme, setSelectedScheme] = useState(null);
 
   const filteredLoans = loans.filter((loan) => {
@@ -232,10 +231,7 @@ export default function LoansScreen() {
             {/* Action button */}
             {selectedLoan.remainingAmount > 0 ? (
               <button
-                onClick={() => {
-                  setRepayTargetLoanId(selectedLoan.id);
-                  setAddRepayOpen(true);
-                }}
+                onClick={() => setAddRepayOpen(true)}
                 className="w-full py-4 px-6 rounded-full bg-[#BF745F] hover:bg-[#A65E4A] text-white font-serif font-bold text-sm shadow-pastel-terracotta transition touch-press flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />
@@ -340,7 +336,7 @@ export default function LoansScreen() {
         <AddRepaymentModal
           isOpen={addRepayOpen}
           onClose={() => setAddRepayOpen(false)}
-          defaultLoanId={repayTargetLoanId}
+          defaultLoanId={selectedLoan.id}
         />
       </div>
     );
