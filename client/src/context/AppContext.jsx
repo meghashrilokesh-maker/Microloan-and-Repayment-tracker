@@ -167,36 +167,58 @@ export function AppProvider({ children }) {
   const [toastMessage, setToastMessage] = useState(null);
 
   const fetchLoans = async () => {
-    const { data, error } = await supabase
-      .from('loans')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const [loansRes, repaymentsRes] = await Promise.all([
+      supabase.from('loans').select('*').order('created_at', { ascending: false }),
+      supabase.from('repayments').select('*').order('payment_date', { ascending: false })
+    ]);
 
-    if (error) {
-      console.error('Error fetching loans:', error);
+    if (loansRes.error) {
+      console.error('Error fetching loans from Supabase:', loansRes.error);
       return;
     }
 
-    const formattedLoans = data.map(loan => ({
-      id: loan.id,
-      name: loan.loan_name,
-      lender: loan.lender,
-      originalAmount: Number(loan.loan_amount),
-      totalRepaid: 0,
-      remainingAmount: Number(loan.loan_amount),
-      repaymentAmount: Number(loan.repayment_amount || 0),
-      frequency: loan.repayment_frequency,
-      firstDueDate: loan.first_due_date,
-      nextDueDate: loan.next_due_date,
-      finalDueDate: loan.final_due_date || '',
-      status: loan.status || 'On Track',
-      notes: loan.notes || '',
-      repayments: []
-    }));
+    if (repaymentsRes.error) {
+      console.error('Error fetching repayments from Supabase:', repaymentsRes.error);
+    }
+
+    const allRepayments = repaymentsRes.data || [];
+
+    const formattedLoans = (loansRes.data || []).map(loan => {
+      const loanRepayments = allRepayments
+        .filter(r => r.loan_id === loan.id)
+        .map(r => ({
+          id: r.id,
+          amount: Number(r.amount || 0),
+          date: r.payment_date || (r.created_at ? r.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
+          method: r.payment_method || 'UPI',
+          note: r.note || r.notes || ''
+        }));
+
+      const totalRepaid = loanRepayments.reduce((sum, r) => sum + r.amount, 0);
+      const originalAmount = Number(loan.loan_amount || 0);
+      const remainingAmount = Math.max(0, originalAmount - totalRepaid);
+      const status = remainingAmount === 0 ? 'Completed' : (loan.status || 'On Track');
+
+      return {
+        id: loan.id,
+        name: loan.loan_name,
+        lender: loan.lender,
+        originalAmount,
+        totalRepaid,
+        remainingAmount,
+        repaymentAmount: Number(loan.repayment_amount || 0),
+        frequency: loan.repayment_frequency,
+        firstDueDate: loan.first_due_date,
+        nextDueDate: loan.next_due_date,
+        finalDueDate: loan.final_due_date || '',
+        status,
+        notes: loan.notes || '',
+        repayments: loanRepayments
+      };
+    });
 
     setLoans(formattedLoans);
-
-    console.log('Loans loaded from Supabase:', formattedLoans);
+    console.log('Loans loaded from Supabase with repayments:', formattedLoans);
   };
 
   useEffect(() => {
@@ -509,6 +531,38 @@ export function AppProvider({ children }) {
 
   const addRepayment = async ({ loanId, amount, date, method, note }) => {
     const repayNum = Number(amount);
+
+    const targetLoan = (loans || []).find(l => l.id === loanId);
+    if (targetLoan && repayNum > targetLoan.remainingAmount) {
+      showToast(`⚠ ${t.overpaymentWarning}`);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('repayments')
+      .insert([{
+        loan_id: loanId,
+        amount: repayNum,
+        payment_date: date || todayStr,
+        payment_method: method || 'UPI'
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding repayment to Supabase:', error);
+      showToast('⚠ Failed to record repayment');
+      return;
+    }
+
+    const newRepaymentEntry = {
+      id: data.id,
+      amount: repayNum,
+      date: date || todayStr,
+      method: method || 'UPI',
+      note: note || ''
+    };
+
     let updatedLoan = null;
 
     setLoans(prevLoans => {
@@ -523,14 +577,6 @@ export function AppProvider({ children }) {
         const newRemaining = Math.max(0, loan.remainingAmount - repayNum);
         const newTotalRepaid = loan.totalRepaid + repayNum;
         const newStatus = newRemaining === 0 ? 'Completed' : loan.status;
-
-        const newRepaymentEntry = {
-          id: 'r_' + Date.now(),
-          amount: repayNum,
-          date: date || todayStr,
-          method: method || 'UPI',
-          note: note || ''
-        };
 
         updatedLoan = {
           ...loan,
