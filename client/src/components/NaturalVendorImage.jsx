@@ -6,14 +6,16 @@ import React from 'react';
  */
 export default function NaturalVendorImage({
   type = 'flowers', // 'flowers' | 'farmer' | 'cottoncandy' | 'tea' | 'couple' | 'business'
+  customSrc = null,
   className = '',
+  imgClassName = '',
   alt = 'Vendor Illustration',
   size = 'md', // 'xs' | 'sm' | 'md' | 'lg' | 'hero' | 'full'
   backdrop = 'none', // 'none' | 'arch' | 'blob' | 'circle' | 'pill'
   backdropColor = 'sage', // 'sage' | 'terracotta' | 'sand' | 'lavender' | 'blush'
   showBotanical = false
 }) {
-  // Map all types exclusively to the 3 approved 2D Indian illustrations
+  // Map all types exclusively to the approved 2D illustrations
   const illustrationMap = {
     flowers: '/images/vendor-flowers.png',
     farmer: '/images/vendor-farmer.png',
@@ -23,7 +25,7 @@ export default function NaturalVendorImage({
     business: '/images/vendor-farmer.png',
   };
 
-  const src = illustrationMap[type] || illustrationMap.flowers;
+  const src = customSrc || illustrationMap[type] || illustrationMap.flowers;
 
   const sizeClasses = {
     xs: 'w-10 h-10',
@@ -85,11 +87,11 @@ export default function NaturalVendorImage({
         </svg>
       )}
 
-      {/* 2D Indian Vendor Character Cutout */}
+      {/* 2D Vendor Character Cutout */}
       <img
         src={src}
         alt={alt}
-        className={`object-contain vendor-illustration-native ${sizeClasses[size] || ''}`}
+        className={`object-contain vendor-illustration-native ${sizeClasses[size] || ''} ${imgClassName}`}
         loading="lazy"
       />
     </div>

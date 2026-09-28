@@ -86,27 +86,18 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
       <main className="max-w-6xl mx-auto w-full my-auto py-6 sm:py-8 space-y-8 relative z-10">
         {/* Welcoming Hero Header with 2 Indian Vendor Illustrations at Sides */}
         <div className="relative bg-white/70 backdrop-blur-sm rounded-3xl p-6 sm:p-10 border border-[#EBE3D7] shadow-soft text-center overflow-hidden">
-          {/* Left Side Decorative Illustration (Cotton Candy / Street Vendor) */}
-          <div className="hidden lg:block absolute left-4 bottom-2 pointer-events-none opacity-90">
-            <NaturalVendorImage 
-              type="cottoncandy" 
-              size="lg" 
-              backdrop="arch" 
-              backdropColor="sage" 
-              showBotanical={true}
-              alt="Indian Street Vendor" 
-            />
-          </div>
+          {/* Left Side: Blank as requested */}
 
-          {/* Right Side Decorative Illustration (Flower Seller / Farmer) */}
-          <div className="hidden lg:block absolute right-4 bottom-2 pointer-events-none opacity-90">
+          {/* Right Side Decorative Illustration (Businessman at desk with computer) */}
+          <div className="hidden lg:block absolute right-4 bottom-2 pointer-events-none opacity-95">
             <NaturalVendorImage 
-              type="flowers" 
+              customSrc="/images/businessman-desk.jpg"
               size="lg" 
               backdrop="arch" 
               backdropColor="terracotta" 
               showBotanical={true}
-              alt="Indian Vendor Woman" 
+              imgClassName="mix-blend-multiply"
+              alt="Business Management" 
             />
           </div>
 
