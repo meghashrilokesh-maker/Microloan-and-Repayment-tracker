@@ -6,7 +6,8 @@ import {
   Landmark, 
   PieChart, 
   Bell, 
-  Globe
+  Globe,
+  LogOut
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -16,6 +17,7 @@ export function TopHeader() {
     setLanguage, 
     setNotificationsOpen, 
     setProfileModalOpen,
+    logoutUser,
     activeTab,
     setActiveTab,
     t
@@ -120,6 +122,16 @@ export function TopHeader() {
             <span className="text-xs font-semibold text-[#2D2825] hidden sm:inline truncate max-w-[80px]">
               {profile.ownerName.split(' ')[0]}
             </span>
+          </button>
+
+          {/* Logout Button */}
+          <button
+            onClick={logoutUser}
+            className="p-2 rounded-full text-[#605955] bg-white/90 hover:bg-[#F8ECE6] hover:text-[#BF745F] border border-[#EBE3D7] shadow-soft transition touch-press"
+            title="Log out"
+            aria-label="Log out"
+          >
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </div>

@@ -8,7 +8,8 @@
     "server:dev": "npm --prefix server run dev",
     "server:start": "npm --prefix server start",
     "client:dev": "npm --prefix client run dev",
-    "build": "npm --prefix client run build"
+    "postinstall": "npm --prefix client install",
+    "build": "npm --prefix client install && npm --prefix client run build && node -e \"const fs=require('fs'); fs.cpSync('client/dist', 'dist', {recursive: true});\""
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
