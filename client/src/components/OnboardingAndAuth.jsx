@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import NaturalVendorImage from './NaturalVendorImage';
+import HomeBackgroundArt from './HomeBackgroundArt';
 import { authApi } from '../utils/api';
 
 /**
@@ -46,8 +47,11 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
       <div className="absolute top-1/3 -right-24 w-96 h-96 bg-[#F9EDE7] rounded-full blur-3xl opacity-50 pointer-events-none -z-10" />
       <div className="absolute -bottom-24 left-1/4 w-80 h-80 bg-[#F1EFF7] rounded-full blur-3xl opacity-60 pointer-events-none -z-10" />
 
+      {/* Subtle Hand-Painted Background Artwork: Person reading newspaper at cafe table */}
+      <HomeBackgroundArt />
+
       {/* 1. TOP HEADER & BRANDING */}
-      <header className="max-w-6xl mx-auto w-full flex items-center justify-between py-2">
+      <header className="max-w-6xl mx-auto w-full flex items-center justify-between py-2 relative z-10">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-2xl bg-[#6B8569] text-white flex items-center justify-center font-serif font-bold text-lg shadow-pastel">
             TS
@@ -79,7 +83,7 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
       </header>
 
       {/* 2. MAIN HERO SECTION */}
-      <main className="max-w-6xl mx-auto w-full my-auto py-6 sm:py-8 space-y-8">
+      <main className="max-w-6xl mx-auto w-full my-auto py-6 sm:py-8 space-y-8 relative z-10">
         {/* Welcoming Hero Header with 2 Indian Vendor Illustrations at Sides */}
         <div className="relative bg-white/70 backdrop-blur-sm rounded-3xl p-6 sm:p-10 border border-[#EBE3D7] shadow-soft text-center overflow-hidden">
           {/* Left Side Decorative Illustration (Cotton Candy / Street Vendor) */}
@@ -285,7 +289,7 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
       </main>
 
       {/* 5. MINIMAL FOOTER */}
-      <footer className="max-w-6xl mx-auto w-full text-center py-2 text-[11px] text-[#9A938E]">
+      <footer className="max-w-6xl mx-auto w-full text-center py-2 text-[11px] text-[#9A938E] relative z-10">
         <span>TrackShack • Digital Companion for Indian Small Businesses & Street Vendors</span>
       </footer>
     </div>

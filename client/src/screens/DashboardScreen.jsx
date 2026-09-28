@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import NaturalVendorImage from '../components/NaturalVendorImage';
+import HomeBackgroundArt from '../components/HomeBackgroundArt';
 import { 
   AddSaleModal, 
   AddExpenseModal, 
@@ -67,7 +68,10 @@ export default function DashboardScreen() {
   .slice(0, 5);
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-6 animate-in fade-in relative">
+      {/* Subtle Hand-Painted Background Artwork: Person reading newspaper at cafe table */}
+      <HomeBackgroundArt />
+
       {/* 1. TOP GREETING & VENDOR HERO BANNER */}
       <div className="relative overflow-hidden bg-[#FAF3EA] rounded-3xl p-5 sm:p-6 lg:p-7 border border-[#EAE1D4] shadow-soft flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Soft pastel background arch motif */}
