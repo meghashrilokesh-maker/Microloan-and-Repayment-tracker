@@ -307,9 +307,10 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
   const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
 
   // --- Login State ---
-  const [loginIdentifier, setLoginIdentifier] = useState('9876543210');
-  const [loginPassword, setLoginPassword] = useState('vendor123');
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [confirmationNotice, setConfirmationNotice] = useState(null);
 
   // --- Multi-Step Onboarding State ---
   // Step 1: Account | Step 2: About You | Step 3: Business/Preferences | Step 4: Location (Vendor) | Step 5/4: Complete
@@ -493,7 +494,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
     const effectiveBusinessType = businessType === 'Other' ? (customBusinessType.trim() || 'Other') : businessType;
 
     try {
-      await registerUser({
+      const res = await registerUser({
         email: accountEmail.trim(),
         password: accountPassword, // NEVER saved in storage/state after this call
         fullName: fullName.trim(),
@@ -510,6 +511,12 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
       // Security: Clear passwords from local component memory immediately
       setAccountPassword('');
       setConfirmPassword('');
+
+      if (res?.confirmationRequired) {
+        setConfirmationNotice(res.message || 'Please check your email to confirm your account before logging in.');
+      } else {
+        setConfirmationNotice(null);
+      }
 
       // Advance to celebratory complete step
       setStep(totalInputSteps + 1);
@@ -1407,45 +1414,80 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                   <CheckCircle2 className="w-8 h-8 text-[#566E54]" />
                 </div>
 
-                <div className="space-y-1">
-                  <h3 className="font-serif font-bold text-lg text-[#2D2825]">
-                    Welcome to TrackShack, {fullName.split(' ')[0]}!
-                  </h3>
-                  <p className="text-xs text-[#7C746F]">
-                    {userType === 'vendor' 
-                      ? 'Your business tracking workspace is fully set up and ready.' 
-                      : 'Your customer profile is active and personalized.'}
-                  </p>
-                </div>
-
-                {/* Profile Summary Card */}
-                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#EBE3D7] text-left text-xs space-y-2">
-                  <div className="flex items-center justify-between pb-2 border-b border-[#EAE2D5]">
-                    <span className="text-[#7C746F] font-medium">Account Role:</span>
-                    <span className="font-bold text-[#425541] px-2.5 py-0.5 rounded-full bg-[#E9EFE8] border border-[#D3DFD2]">
-                      {userType === 'vendor' ? 'Vendor / Business Owner' : 'Customer'}
-                    </span>
-                  </div>
-                  {userType === 'vendor' && (
-                    <div className="flex items-center justify-between pb-2 border-b border-[#EAE2D5]">
-                      <span className="text-[#7C746F] font-medium">Shop Name:</span>
-                      <span className="font-bold text-[#2D2825]">{businessName}</span>
+                {confirmationNotice ? (
+                  <>
+                    <div className="space-y-1">
+                      <h3 className="font-serif font-bold text-lg text-[#2D2825]">
+                        Confirm Your Email
+                      </h3>
+                      <p className="text-xs text-[#7C746F]">
+                        {confirmationNotice}
+                      </p>
                     </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#7C746F] font-medium">Registered Email:</span>
-                    <span className="font-bold text-[#2D2825] truncate max-w-[200px]">{accountEmail}</span>
-                  </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={onLoginSuccess}
-                  className="w-full py-3.5 px-6 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold text-xs shadow-pastel transition flex items-center justify-center gap-2 touch-press"
-                >
-                  <span>{userType === 'vendor' ? 'Go to My Vendor Dashboard' : 'Start Exploring TrackShack'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                    <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#EBE3D7] text-left text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#7C746F] font-medium">Registered Email:</span>
+                        <span className="font-bold text-[#2D2825] truncate max-w-[200px]">{accountEmail}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSignUp(false);
+                        setConfirmationNotice(null);
+                        setStep(1);
+                      }}
+                      className="w-full py-3.5 px-6 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold text-xs shadow-pastel transition flex items-center justify-center gap-2 touch-press"
+                    >
+                      <span>Proceed to Log In</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <h3 className="font-serif font-bold text-lg text-[#2D2825]">
+                        Welcome to TrackShack, {fullName.split(' ')[0]}!
+                      </h3>
+                      <p className="text-xs text-[#7C746F]">
+                        {userType === 'vendor' 
+                          ? 'Your business tracking workspace is fully set up and ready.' 
+                          : 'Your customer profile is active and personalized.'}
+                      </p>
+                    </div>
+
+                    {/* Profile Summary Card */}
+                    <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#EBE3D7] text-left text-xs space-y-2">
+                      <div className="flex items-center justify-between pb-2 border-b border-[#EAE2D5]">
+                        <span className="text-[#7C746F] font-medium">Account Role:</span>
+                        <span className="font-bold text-[#425541] px-2.5 py-0.5 rounded-full bg-[#E9EFE8] border border-[#D3DFD2]">
+                          {userType === 'vendor' ? 'Vendor / Business Owner' : 'Customer'}
+                        </span>
+                      </div>
+                      {userType === 'vendor' && (
+                        <div className="flex items-center justify-between pb-2 border-b border-[#EAE2D5]">
+                          <span className="text-[#7C746F] font-medium">Shop Name:</span>
+                          <span className="font-bold text-[#2D2825]">{businessName}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#7C746F] font-medium">Registered Email:</span>
+                        <span className="font-bold text-[#2D2825] truncate max-w-[200px]">{accountEmail}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={onLoginSuccess}
+                      className="w-full py-3.5 px-6 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold text-xs shadow-pastel transition flex items-center justify-center gap-2 touch-press"
+                    >
+                      <span>{userType === 'vendor' ? 'Go to My Vendor Dashboard' : 'Start Exploring TrackShack'}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -1462,7 +1504,7 @@ export const SplashScreen = LandingScreen;
 export const OnboardingFlow = LandingScreen;
 
 export function BusinessProfileSetupModal({ isOpen, onClose }) {
-  const { t, profile, setProfile, showToast } = useApp();
+  const { t, profile, setProfile, updateProfile, showToast } = useApp();
   const [formData, setFormData] = useState({
     ownerName: profile.ownerName || '',
     businessName: profile.businessName || '',
@@ -1485,20 +1527,32 @@ export function BusinessProfileSetupModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await authApi.updateProfile({
-        fullName: formData.ownerName,
-        businessName: formData.businessName,
-        businessType: formData.businessType,
-        language: formData.language,
-        location: formData.location
-      });
-      setProfile(prev => ({ ...prev, ...formData }));
+      if (updateProfile) {
+        await updateProfile({
+          fullName: formData.ownerName,
+          ownerName: formData.ownerName,
+          businessName: formData.businessName,
+          businessType: formData.businessType,
+          language: formData.language,
+          location: formData.location
+        });
+      } else {
+        setProfile(prev => ({ ...prev, ...formData }));
+      }
+      try {
+        await authApi.updateProfile({
+          fullName: formData.ownerName,
+          businessName: formData.businessName,
+          businessType: formData.businessType,
+          language: formData.language,
+          location: formData.location
+        });
+      } catch (e) {}
       showToast('Business profile updated!');
       onClose();
     } catch (_err) {
       showToast('Failed to update business profile in database');
     }
-
   };
 
 

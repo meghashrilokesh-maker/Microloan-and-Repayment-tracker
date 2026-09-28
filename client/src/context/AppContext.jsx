@@ -4,7 +4,25 @@ import { authApi, financialsApi, connectSSE } from '../utils/api';
 import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 const AppContext = createContext();
 
-const INITIAL_PROFILE = {
+const EMPTY_PROFILE = {
+  id: '',
+  ownerName: '',
+  fullName: '',
+  businessName: '',
+  businessType: '',
+  phone: '',
+  language: 'en',
+  location: '',
+  avatar: '/images/vendor-cottoncandy.png',
+  userType: 'vendor', // 'vendor' | 'customer'
+  productsServices: '',
+  interests: [],
+  hasCompletedOnboarding: false,
+  isLoggedIn: false,
+  isDemo: false
+};
+
+const DEMO_PROFILE = {
   id: 'demo-vendor-ravi',
   ownerName: 'Ravi Kumar',
   fullName: 'Ravi Kumar',
@@ -14,12 +32,15 @@ const INITIAL_PROFILE = {
   language: 'en',
   location: 'City Market, Cross 4, Bengaluru',
   avatar: '/images/vendor-cottoncandy.png',
-  userType: 'vendor', // 'vendor' | 'customer'
+  userType: 'vendor',
   productsServices: 'Potatoes, onions, tomatoes, and seasonal fresh greens',
   interests: [],
   hasCompletedOnboarding: true,
-  isLoggedIn: true
+  isLoggedIn: true,
+  isDemo: true
 };
+
+const INITIAL_PROFILE = DEMO_PROFILE;
 
 const INITIAL_SALES = [
   { id: 's1', amount: 1500, category: 'Vegetables', note: 'Morning onion & potato crates', date: new Date().toISOString().split('T')[0], time: '08:30 AM' },
@@ -107,14 +128,14 @@ export function AppProvider({ children }) {
       const saved = localStorage.getItem('trackshack_profile');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.ownerName === 'string' && !parsed.code) {
-          return { ...INITIAL_PROFILE, ...parsed };
+        if (parsed && typeof parsed.ownerName === 'string' && !parsed.code && parsed.isLoggedIn && parsed.id) {
+          return { ...EMPTY_PROFILE, ...parsed };
         }
       }
     } catch (e) {
-      console.warn('Failed to parse saved profile, resetting to demo profile:', e);
+      console.warn('Failed to parse saved profile:', e);
     }
-    return INITIAL_PROFILE;
+    return EMPTY_PROFILE;
   });
 
   // Safe Financial Parsers: real users start with empty records, demo user uses rich sample data
@@ -123,22 +144,25 @@ export function AppProvider({ children }) {
       const savedProfile = localStorage.getItem('trackshack_profile');
       if (savedProfile) {
         const p = JSON.parse(savedProfile);
+        if (p?.isDemo && p?.id === 'demo-vendor-ravi') {
+          const saved = localStorage.getItem('trackshack_sales');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0 && !parsed[0]?.code) {
+              return parsed;
+            }
+          }
+          return INITIAL_SALES;
+        }
         if (p?.id && p.id !== 'demo-vendor-ravi') {
           const userSaved = localStorage.getItem(`trackshack_sales_${p.id}`);
           return userSaved ? JSON.parse(userSaved) : [];
         }
       }
-      const saved = localStorage.getItem('trackshack_sales');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0 && !parsed[0]?.code) {
-          return parsed;
-        }
-      }
     } catch (e) {
-      console.warn('Failed to parse sales, resetting:', e);
+      console.warn('Failed to parse sales:', e);
     }
-    return INITIAL_SALES;
+    return [];
   });
 
   const [expenses, setExpenses] = useState(() => {
@@ -146,22 +170,25 @@ export function AppProvider({ children }) {
       const savedProfile = localStorage.getItem('trackshack_profile');
       if (savedProfile) {
         const p = JSON.parse(savedProfile);
+        if (p?.isDemo && p?.id === 'demo-vendor-ravi') {
+          const saved = localStorage.getItem('trackshack_expenses');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0 && !parsed[0]?.code) {
+              return parsed;
+            }
+          }
+          return INITIAL_EXPENSES;
+        }
         if (p?.id && p.id !== 'demo-vendor-ravi') {
           const userSaved = localStorage.getItem(`trackshack_expenses_${p.id}`);
           return userSaved ? JSON.parse(userSaved) : [];
         }
       }
-      const saved = localStorage.getItem('trackshack_expenses');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0 && !parsed[0]?.code) {
-          return parsed;
-        }
-      }
     } catch (e) {
-      console.warn('Failed to parse expenses, resetting:', e);
+      console.warn('Failed to parse expenses:', e);
     }
-    return INITIAL_EXPENSES;
+    return [];
   });
 
   const [loans, setLoans] = useState(() => {
@@ -169,22 +196,25 @@ export function AppProvider({ children }) {
       const savedProfile = localStorage.getItem('trackshack_profile');
       if (savedProfile) {
         const p = JSON.parse(savedProfile);
+        if (p?.isDemo && p?.id === 'demo-vendor-ravi') {
+          const saved = localStorage.getItem('trackshack_loans');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0 && !parsed[0]?.code) {
+              return parsed;
+            }
+          }
+          return INITIAL_LOANS;
+        }
         if (p?.id && p.id !== 'demo-vendor-ravi') {
           const userSaved = localStorage.getItem(`trackshack_loans_${p.id}`);
           return userSaved ? JSON.parse(userSaved) : [];
         }
       }
-      const saved = localStorage.getItem('trackshack_loans');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0 && !parsed[0]?.code) {
-          return parsed;
-        }
-      }
     } catch (e) {
-      console.warn('Failed to parse loans, resetting:', e);
+      console.warn('Failed to parse loans:', e);
     }
-    return INITIAL_LOANS;
+    return [];
   });
 
   const [loadingFinancials, setLoadingFinancials] = useState(false);
@@ -252,8 +282,10 @@ export function AppProvider({ children }) {
   };
 
   useEffect(() => {
-    fetchLoans();
-  }, []);
+    if (profile.id && profile.id !== 'demo-vendor-ravi') {
+      fetchLoans();
+    }
+  }, [profile.id]);
 
   // Safe Toast: always sets a plain string, never an object with {code, message}
   const showToast = (msg) => {
@@ -268,10 +300,14 @@ export function AppProvider({ children }) {
     }, 3200);
   };
 
-  // Sync to localStorage
+  // Sync to localStorage strictly when logged in
   useEffect(() => {
     try {
-      localStorage.setItem('trackshack_profile', JSON.stringify(profile));
+      if (profile.isLoggedIn && profile.id) {
+        localStorage.setItem('trackshack_profile', JSON.stringify(profile));
+      } else {
+        localStorage.removeItem('trackshack_profile');
+      }
     } catch (e) {
       console.warn('Could not persist profile:', e);
     }
@@ -488,9 +524,9 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // Helper to load and normalize user profile from Supabase Auth & public.profiles
+  // Helper to load and normalize user profile strictly from Supabase Auth & public.profiles
   const loadUserProfile = async (user) => {
-    if (!user) return null;
+    if (!user || !user.id) return null;
     const meta = user.user_metadata || {};
     const emailPrefix = user.email ? user.email.split('@')[0] : 'User';
 
@@ -503,22 +539,23 @@ export function AppProvider({ children }) {
       businessType: meta.business_type || meta.businessType || (meta.user_type === 'customer' ? 'Customer' : 'Vegetables & Fruits'),
       productsServices: meta.products_services || meta.productsServices || '',
       phone: meta.phone || '',
-      language: meta.language || profile.language || 'en',
-      location: meta.location || 'Local Market',
+      language: meta.language || 'en',
+      location: meta.location || 'Local Market Area',
       interests: Array.isArray(meta.interests) ? meta.interests : [],
       avatar: '/images/vendor-cottoncandy.png',
       hasCompletedOnboarding: meta.has_completed_onboarding !== false,
-      isLoggedIn: true
+      isLoggedIn: true,
+      isDemo: false
     };
 
-    // If public.profiles table exists in Supabase, load and merge rich profile
+    // Query exact row from public.profiles where id = user.id
     if (supabase) {
       try {
         const { data: dbProfile, error: dbErr } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (dbProfile && !dbErr) {
           profileData = {
@@ -535,19 +572,37 @@ export function AppProvider({ children }) {
             interests: Array.isArray(dbProfile.interests) ? dbProfile.interests : profileData.interests,
             hasCompletedOnboarding: dbProfile.has_completed_onboarding !== false
           };
+        } else if (!dbProfile && !dbErr) {
+          // If profile row doesn't exist yet in public.profiles, create it now for this user ID
+          try {
+            await supabase.from('profiles').upsert({
+              id: user.id,
+              full_name: profileData.fullName,
+              user_type: profileData.userType,
+              phone: profileData.phone,
+              business_name: profileData.userType === 'vendor' ? profileData.businessName : null,
+              business_type: profileData.userType === 'vendor' ? profileData.businessType : null,
+              products_services: profileData.userType === 'vendor' ? profileData.productsServices : null,
+              location: profileData.location,
+              language: profileData.language,
+              interests: profileData.interests,
+              has_completed_onboarding: true,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+          } catch (createErr) {
+            console.warn('Could not auto-create missing profile row in public.profiles:', createErr.message);
+          }
         }
       } catch (err) {
-        // Table may not exist yet in Supabase; fallback gracefully to metadata
+        console.warn('Error reading public.profiles in Supabase:', err.message);
       }
     }
 
     setProfile(profileData);
     localStorage.setItem('trackshack_profile', JSON.stringify(profileData));
 
-    // Load real transactions for authenticated user
-    if (user.id && user.id !== 'demo-vendor-ravi') {
-      loadTransactions(user.id);
-    }
+    // Load real transactions strictly belonging to this authenticated user
+    await loadTransactions(user.id);
 
     return profileData;
   };
@@ -563,19 +618,38 @@ export function AppProvider({ children }) {
         if (session.access_token) {
           localStorage.setItem('trackshack_token', session.access_token);
         }
+      } else {
+        // No active session in Supabase
+        const saved = localStorage.getItem('trackshack_profile');
+        if (saved) {
+          try {
+            const p = JSON.parse(saved);
+            if (p?.isDemo && p?.id === 'demo-vendor-ravi') {
+              return; // Keep demo if explicitly active
+            }
+          } catch (e) {}
+        }
+        localStorage.removeItem('trackshack_token');
+        localStorage.removeItem('trackshack_profile');
+        setProfile(EMPTY_PROFILE);
       }
     }).catch(err => {
       console.warn('Supabase getSession error:', err);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+      if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) {
         await loadUserProfile(session.user);
         if (session.access_token) {
           localStorage.setItem('trackshack_token', session.access_token);
         }
       } else if (event === 'SIGNED_OUT') {
         localStorage.removeItem('trackshack_token');
+        localStorage.removeItem('trackshack_profile');
+        setSales([]);
+        setExpenses([]);
+        setLoans([]);
+        setProfile(EMPTY_PROFILE);
       }
     });
 
@@ -584,236 +658,194 @@ export function AppProvider({ children }) {
     };
   }, []);
 
-  // Robust Authenticate user: attempts Supabase Auth first, then backend, falls back gracefully locally
+  // Authenticate user with Supabase Auth as the single source of truth
   const loginUser = async (identifier, password) => {
-    let authenticatedWithSupabase = false;
-    let resolvedProfile = null;
+    if (!identifier || !password) {
+      throw new Error('Please enter both your email/phone and password.');
+    }
 
-    // 1. Try Supabase Auth if configured
-    if (supabase && identifier) {
-      try {
-        const cleanIdent = identifier.trim();
-        const isEmail = cleanIdent.includes('@');
+    const cleanIdent = identifier.trim();
+    const isExplicitDemo = cleanIdent === '9876543210' || cleanIdent === 'ravi@trackshack.demo';
 
-        if (isEmail) {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: cleanIdent,
-            password
-          });
-          if (!error && data?.session?.user) {
-            authenticatedWithSupabase = true;
-            localStorage.setItem('trackshack_token', data.session.access_token);
-            resolvedProfile = await loadUserProfile(data.session.user);
-          }
-        } else {
-          const cleanPhone = cleanIdent.replace(/\D/g, '');
-          const formattedPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : `+${cleanPhone}`;
-          
-          // Try phone auth first
-          let res = await supabase.auth.signInWithPassword({
-            phone: formattedPhone,
-            password
-          });
+    // 1. Explicit Demo Mode Login
+    if (isExplicitDemo && (!supabase || password === 'vendor123')) {
+      const demoUser = { ...DEMO_PROFILE };
+      setProfile(demoUser);
+      localStorage.setItem('trackshack_profile', JSON.stringify(demoUser));
+      setSales(INITIAL_SALES);
+      setExpenses(INITIAL_EXPENSES);
+      setLoans(INITIAL_LOANS);
+      showToast('Welcome to Demo Mode, Ravi!');
+      return { success: true, profile: demoUser };
+    }
 
-          // If phone provider is disabled or fails, try email-mapped format
-          if (res.error) {
-            res = await supabase.auth.signInWithPassword({
-              email: `vendor_${cleanPhone}@trackshack.local`,
-              password
-            });
-          }
+    // 2. Real Supabase Authentication
+    if (!supabase) {
+      throw new Error('Supabase authentication is not configured. Please set VITE_SUPABASE_PUBLISHABLE_KEY in client/.env.local.');
+    }
 
-          if (!res.error && res.data?.session?.user) {
-            authenticatedWithSupabase = true;
-            localStorage.setItem('trackshack_token', res.data.session.access_token);
-            resolvedProfile = await loadUserProfile(res.data.session.user);
-          }
-        }
-      } catch (sbErr) {
-        console.info('Supabase sign-in note:', sbErr.message);
+    const isEmail = cleanIdent.includes('@');
+    let authRes;
+
+    if (isEmail) {
+      authRes = await supabase.auth.signInWithPassword({
+        email: cleanIdent,
+        password
+      });
+    } else {
+      const cleanPhone = cleanIdent.replace(/\D/g, '');
+      const formattedPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : `+${cleanPhone}`;
+
+      // Try phone auth first
+      authRes = await supabase.auth.signInWithPassword({
+        phone: formattedPhone,
+        password
+      });
+
+      // If phone provider fails or is not enabled, try email-mapped alias
+      if (authRes.error) {
+        authRes = await supabase.auth.signInWithPassword({
+          email: `vendor_${cleanPhone}@trackshack.local`,
+          password
+        });
       }
     }
 
-    // 2. Synchronize with backend API or fallback locally
-    if (!authenticatedWithSupabase) {
-      const isDemo = identifier === '9876543210' || identifier === 'ravi@trackshack.demo';
-      let userProfile = {
-        id: isDemo ? 'demo-vendor-ravi' : 'local-user-' + Date.now(),
-        ownerName: isDemo ? 'Ravi Kumar' : 'Vendor',
-        fullName: isDemo ? 'Ravi Kumar' : 'Vendor',
-        userType: 'vendor',
-        businessName: isDemo ? 'Ravi Fresh Vegetables & Fruits' : 'My Business',
-        businessType: isDemo ? 'Vegetables & Fruits' : 'General Store',
-        productsServices: isDemo ? 'Potatoes, onions, tomatoes, and seasonal fresh greens' : '',
-        phone: identifier || '9876543210',
-        language: profile.language || 'en',
-        location: isDemo ? 'City Market, Cross 4, Bengaluru' : 'Local Market',
-        avatar: '/images/vendor-cottoncandy.png',
-        interests: [],
-        hasCompletedOnboarding: true,
-        isLoggedIn: true
-      };
-
-      try {
-        const res = await authApi.login({ phone: identifier, password });
-        if (res && res.token) {
-          localStorage.setItem('trackshack_token', res.token);
-        }
-        if (res && res.vendor) {
-          userProfile.ownerName = res.vendor.fullName || userProfile.ownerName;
-          userProfile.fullName = res.vendor.fullName || userProfile.fullName;
-          userProfile.businessName = res.vendor.businessName || userProfile.businessName;
-          userProfile.businessType = res.vendor.businessType || userProfile.businessType;
-          userProfile.phone = res.vendor.phone || userProfile.phone;
-          userProfile.location = res.vendor.location || userProfile.location;
-        }
-      } catch (err) {
-        console.info('Server API unreachable, logging in locally:', err.message);
-        localStorage.setItem('trackshack_token', 'local_vendor_token_' + Date.now());
-      }
-
-      setProfile(userProfile);
-      localStorage.setItem('trackshack_profile', JSON.stringify(userProfile));
-      resolvedProfile = userProfile;
-      if (isDemo) {
-        setSales(INITIAL_SALES);
-        setExpenses(INITIAL_EXPENSES);
-        setLoans(INITIAL_LOANS);
-      } else {
-        setSales([]);
-        setExpenses([]);
-        setLoans([]);
-      }
+    if (authRes.error) {
+      console.error('Supabase signInWithPassword error:', authRes.error.message);
+      throw new Error(authRes.error.message || 'Invalid login credentials.');
     }
 
-    if (resolvedProfile?.id && resolvedProfile.id !== 'demo-vendor-ravi') {
-      loadTransactions(resolvedProfile.id);
+    if (!authRes.data?.session?.user) {
+      throw new Error('Login succeeded but no active session was returned. Please verify your email.');
     }
 
-    showToast(`Welcome back, ${resolvedProfile.ownerName.split(' ')[0]}!`);
+    const session = authRes.data.session;
+    if (session.access_token) {
+      localStorage.setItem('trackshack_token', session.access_token);
+    }
+
+    const resolvedProfile = await loadUserProfile(session.user);
+    showToast(`Welcome back, ${(resolvedProfile?.fullName || 'User').split(' ')[0]}!`);
     return { success: true, profile: resolvedProfile };
   };
 
-  // Robust Register user: attempts Supabase Auth first, then backend, falls back gracefully locally
-  // NOTE: Password is NEVER saved in localStorage, user metadata, or application state.
+  // Register user with Supabase Auth as the single source of truth
+  // NOTE: Password is NEVER saved in metadata, public.profiles, localStorage or state!
   const registerUser = async (formData) => {
+    if (!formData.password || (!formData.email && !formData.phone)) {
+      throw new Error('Email or mobile number and password are required.');
+    }
+
+    if (!supabase) {
+      throw new Error('Supabase authentication is not configured. Please set VITE_SUPABASE_PUBLISHABLE_KEY in client/.env.local.');
+    }
+
     const userType = formData.userType || 'vendor';
     const cleanPhone = (formData.phone || '').replace(/\D/g, '');
     const userEmail = (formData.email || (cleanPhone ? `vendor_${cleanPhone}@trackshack.local` : '')).trim();
 
-    let userProfile = {
-      id: '',
-      ownerName: formData.fullName || formData.ownerName || (userType === 'customer' ? 'Customer' : 'Vendor'),
-      fullName: formData.fullName || formData.ownerName || (userType === 'customer' ? 'Customer' : 'Vendor'),
+    if (!userEmail) {
+      throw new Error('A valid email address is required.');
+    }
+
+    const userMetadata = {
+      full_name: formData.fullName?.trim() || '',
+      fullName: formData.fullName?.trim() || '',
+      user_type: userType,
       userType: userType,
-      businessName: userType === 'customer' ? 'Customer Profile' : (formData.businessName || 'My Business'),
-      businessType: userType === 'customer' ? 'Customer' : (formData.businessType || 'Vegetables & Fruits'),
-      productsServices: formData.productsServices || '',
-      phone: formData.phone || '',
-      language: formData.language || profile.language || 'en',
-      location: formData.location || 'Local Market',
+      phone: cleanPhone,
+      business_name: userType === 'vendor' ? (formData.businessName?.trim() || 'My Business') : 'Customer Profile',
+      businessName: userType === 'vendor' ? (formData.businessName?.trim() || 'My Business') : 'Customer Profile',
+      business_type: userType === 'vendor' ? (formData.businessType || 'Vegetables & Fruits') : 'Customer',
+      businessType: userType === 'vendor' ? (formData.businessType || 'Vegetables & Fruits') : 'Customer',
+      products_services: userType === 'vendor' ? (formData.productsServices?.trim() || '') : '',
+      productsServices: userType === 'vendor' ? (formData.productsServices?.trim() || '') : '',
+      location: formData.location?.trim() || 'Local Market Area',
+      language: formData.language || 'en',
       interests: Array.isArray(formData.interests) ? formData.interests : [],
-      avatar: '/images/vendor-cottoncandy.png',
-      hasCompletedOnboarding: true,
-      isLoggedIn: true
+      has_completed_onboarding: true
     };
 
-    let registeredWithSupabase = false;
+    const { data, error } = await supabase.auth.signUp({
+      email: userEmail,
+      password: formData.password,
+      options: { data: userMetadata }
+    });
 
-    // 1. Try Supabase Auth with email/password if configured
-    if (supabase && userEmail && formData.password) {
+    if (error) {
+      console.error('Supabase signUp error:', error.message);
+      throw new Error(error.message || 'Registration failed.');
+    }
+
+    if (!data?.user) {
+      throw new Error('Registration failed: no user returned by Supabase.');
+    }
+
+    const authUserId = data.user.id;
+
+    // CASE A: User session returned immediately (Auto-confirmed / confirmation disabled)
+    if (data.session) {
+      if (data.session.access_token) {
+        localStorage.setItem('trackshack_token', data.session.access_token);
+      }
+
+      // Upsert profile row into public.profiles
       try {
-        const userMetadata = {
-          full_name: userProfile.fullName,
-          fullName: userProfile.fullName,
-          user_type: userType,
-          userType: userType,
-          phone: userProfile.phone,
-          business_name: userProfile.businessName,
-          businessName: userProfile.businessName,
-          business_type: userProfile.businessType,
-          businessType: userProfile.businessType,
-          products_services: userProfile.productsServices,
-          productsServices: userProfile.productsServices,
-          location: userProfile.location,
-          language: userProfile.language,
-          interests: userProfile.interests,
-          has_completed_onboarding: true
-        };
-
-        const { data, error } = await supabase.auth.signUp({
-          email: userEmail,
-          password: formData.password,
-          options: { data: userMetadata }
-        });
-
-        if (!error && data?.user) {
-          registeredWithSupabase = true;
-          userProfile.id = data.user.id;
-          if (data.session?.access_token) {
-            localStorage.setItem('trackshack_token', data.session.access_token);
-          }
-
-          // Try persisting into public.profiles table in Supabase
-          try {
-            await supabase.from('profiles').upsert({
-              id: data.user.id,
-              user_type: userProfile.userType,
-              full_name: userProfile.fullName,
-              phone: userProfile.phone,
-              business_name: userProfile.userType === 'vendor' ? userProfile.businessName : null,
-              business_type: userProfile.userType === 'vendor' ? userProfile.businessType : null,
-              products_services: userProfile.userType === 'vendor' ? userProfile.productsServices : null,
-              location: userProfile.location,
-              language: userProfile.language,
-              interests: userProfile.interests,
-              has_completed_onboarding: true,
-              updated_at: new Date().toISOString()
-            });
-          } catch (dbErr) {
-            console.info('Profiles table sync skipped or not created yet in Supabase:', dbErr.message);
-          }
-        } else if (error) {
-          console.warn('Supabase signUp warning:', error.message);
-        }
-      } catch (sbErr) {
-        console.info('Supabase registration note:', sbErr.message);
+        await supabase.from('profiles').upsert({
+          id: authUserId,
+          full_name: userMetadata.full_name,
+          user_type: userMetadata.user_type,
+          phone: userMetadata.phone,
+          business_name: userMetadata.user_type === 'vendor' ? userMetadata.business_name : null,
+          business_type: userMetadata.user_type === 'vendor' ? userMetadata.business_type : null,
+          products_services: userMetadata.user_type === 'vendor' ? userMetadata.products_services : null,
+          location: userMetadata.location,
+          language: userMetadata.language,
+          interests: userMetadata.interests,
+          has_completed_onboarding: true,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      } catch (dbErr) {
+        console.warn('public.profiles upsert warning:', dbErr.message);
       }
+
+      const activeProfile = {
+        id: authUserId,
+        ownerName: userMetadata.full_name,
+        fullName: userMetadata.full_name,
+        userType: userMetadata.user_type,
+        businessName: userMetadata.business_name,
+        businessType: userMetadata.business_type,
+        productsServices: userMetadata.products_services,
+        phone: userMetadata.phone,
+        language: userMetadata.language,
+        location: userMetadata.location,
+        interests: userMetadata.interests,
+        avatar: '/images/vendor-cottoncandy.png',
+        hasCompletedOnboarding: true,
+        isLoggedIn: true,
+        isDemo: false
+      };
+
+      setProfile(activeProfile);
+      localStorage.setItem('trackshack_profile', JSON.stringify(activeProfile));
+      // Fresh user starts with 0 transactions
+      setSales([]);
+      setExpenses([]);
+      setLoans([]);
+
+      showToast(`Account created! Welcome, ${activeProfile.fullName.split(' ')[0]}!`);
+      return { success: true, profile: activeProfile, confirmationRequired: false };
     }
 
-    // 2. Synchronize with backend API or fallback locally
-    try {
-      const res = await authApi.register({
-        phone: userProfile.phone || userEmail,
-        password: formData.password,
-        fullName: userProfile.fullName,
-        businessName: userProfile.businessName,
-        businessType: userProfile.businessType,
-        location: userProfile.location,
-        preferredLanguage: userProfile.language
-      });
-      if (res && res.token && !registeredWithSupabase) {
-        localStorage.setItem('trackshack_token', res.token);
-      }
-      if (res && res.vendor) {
-        userProfile.ownerName = res.vendor.fullName || userProfile.ownerName;
-        userProfile.fullName = res.vendor.fullName || userProfile.fullName;
-      }
-    } catch (err) {
-      if (!registeredWithSupabase) {
-        console.info('Server API unreachable, registering locally:', err.message);
-        localStorage.setItem('trackshack_token', 'local_vendor_token_' + Date.now());
-      }
-    }
-
-    // Newly registered real account starts with 0 transactions
-    setSales([]);
-    setExpenses([]);
-    setLoans([]);
-    setProfile(userProfile);
-    localStorage.setItem('trackshack_profile', JSON.stringify(userProfile));
-    showToast(`Account created! Welcome, ${userProfile.ownerName.split(' ')[0]}!`);
-    return { success: true, profile: userProfile };
+    // CASE B: Email confirmation required (data.session is null)
+    return {
+      success: true,
+      user: data.user,
+      confirmationRequired: true,
+      message: 'Account created! Please check your email to confirm your account before logging in.'
+    };
   };
 
   const logoutUser = async () => {
@@ -822,7 +854,7 @@ export function AppProvider({ children }) {
         await supabase.auth.signOut();
       }
     } catch (err) {
-      console.warn('Supabase sign out warning:', err);
+      console.warn('Supabase signOut warning:', err);
     }
     localStorage.removeItem('trackshack_token');
     localStorage.removeItem('trackshack_profile');
@@ -833,28 +865,60 @@ export function AppProvider({ children }) {
     setLoans([]);
     setFinancialsError(null);
 
-    setProfile({
-      id: '',
-      ownerName: 'Vendor',
-      fullName: 'Vendor',
-      userType: 'vendor',
-      businessName: 'My Business',
-      businessType: 'General Store',
-      productsServices: '',
-      phone: '',
-      language: profile.language || 'en',
-      location: '',
-      avatar: '/images/vendor-cottoncandy.png',
-      interests: [],
-      hasCompletedOnboarding: false,
-      isLoggedIn: false
-    });
+    setProfile(EMPTY_PROFILE);
 
     try {
       window.history.replaceState(null, '', window.location.pathname);
     } catch (e) {}
 
     showToast('Logged out successfully');
+  };
+
+  const updateProfile = async (updates) => {
+    if (!profile.id) return;
+    const isRealUser = profile.id !== 'demo-vendor-ravi';
+    const updated = { ...profile, ...updates };
+    setProfile(updated);
+
+    if (isRealUser && supabase) {
+      try {
+        const dbUpdates = {
+          updated_at: new Date().toISOString()
+        };
+        if (updates.fullName !== undefined) dbUpdates.full_name = updates.fullName;
+        if (updates.ownerName !== undefined) dbUpdates.full_name = updates.ownerName;
+        if (updates.businessName !== undefined) dbUpdates.business_name = updates.businessName;
+        if (updates.businessType !== undefined) dbUpdates.business_type = updates.businessType;
+        if (updates.productsServices !== undefined) dbUpdates.products_services = updates.productsServices;
+        if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+        if (updates.location !== undefined) dbUpdates.location = updates.location;
+        if (updates.language !== undefined) dbUpdates.language = updates.language;
+        if (updates.interests !== undefined) dbUpdates.interests = updates.interests;
+
+        await supabase
+          .from('profiles')
+          .update(dbUpdates)
+          .eq('id', profile.id);
+
+        await supabase.auth.updateUser({
+          data: {
+            full_name: updated.fullName,
+            business_name: updated.businessName,
+            business_type: updated.businessType,
+            products_services: updated.productsServices,
+            phone: updated.phone,
+            location: updated.location,
+            language: updated.language
+          }
+        });
+      } catch (err) {
+        console.warn('Supabase updateProfile error:', err.message);
+      }
+    }
+
+    try {
+      localStorage.setItem('trackshack_profile', JSON.stringify(updated));
+    } catch (e) {}
   };
 
   // Local-first Actions with direct Supabase cloud persistence
@@ -1248,6 +1312,7 @@ export function AppProvider({ children }) {
         loginUser,
         registerUser,
         logoutUser,
+        updateProfile,
         loadFinancialData,
         loadTransactions,
         loadingFinancials,

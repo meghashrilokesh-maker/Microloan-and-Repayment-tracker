@@ -21,10 +21,12 @@ function AppContent() {
   // App phase navigation: 'landing' | 'auth' | 'main'
   const [appPhase, setAppPhase] = useState(() => {
     try {
-      const token = localStorage.getItem('trackshack_token');
       const savedProfile = localStorage.getItem('trackshack_profile');
-      if (token || (savedProfile && JSON.parse(savedProfile)?.isLoggedIn)) {
-        return 'main';
+      if (savedProfile) {
+        const parsed = JSON.parse(savedProfile);
+        if (parsed?.isLoggedIn && parsed?.id) {
+          return 'main';
+        }
       }
     } catch (e) {
       // fallback to landing
@@ -79,7 +81,14 @@ function AppContent() {
     return (
       <div className="relative">
         <LandingScreen
-          onGetStarted={() => setAppPhase('main')}
+          onGetStarted={() => {
+            if (profile.isLoggedIn) {
+              setAppPhase('main');
+            } else {
+              setAuthMode('signup');
+              setAppPhase('auth');
+            }
+          }}
           onLogin={() => {
             setAuthMode('login');
             setAppPhase('auth');
