@@ -50,9 +50,11 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
       {/* Subtle Hand-Painted Background Artwork: Person reading newspaper at cafe table */}
       <HomeBackgroundArt />
 
-      {/* 1. TOP HEADER & BRANDING */}
-      <header className="max-w-6xl mx-auto w-full flex items-center justify-between py-2 relative z-10">
-        <div className="flex items-center gap-2.5">
+      {/* Main Content Wrapper: Responsively narrowed & shifted toward right on desktop to leave left space open for artwork */}
+      <div className="w-full flex-1 flex flex-col justify-between relative z-10 mx-auto lg:ml-auto lg:mr-4 xl:mr-8 2xl:mr-12 max-w-full lg:max-w-[960px] xl:max-w-[1020px] 2xl:max-w-[1060px] transition-all duration-300">
+        {/* 1. TOP HEADER & BRANDING */}
+        <header className="w-full flex items-center justify-between py-2">
+          <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-2xl bg-[#6B8569] text-white flex items-center justify-center font-serif font-bold text-lg shadow-pastel">
             TS
           </div>
@@ -83,7 +85,7 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
       </header>
 
       {/* 2. MAIN HERO SECTION */}
-      <main className="max-w-6xl mx-auto w-full my-auto py-6 sm:py-8 space-y-8 relative z-10">
+      <main className="w-full my-auto py-6 sm:py-8 space-y-8 relative z-10">
         {/* Welcoming Hero Header with 2 Indian Vendor Illustrations at Sides */}
         <div className="relative bg-white/70 backdrop-blur-sm rounded-3xl p-6 sm:p-10 border border-[#EBE3D7] shadow-soft text-center overflow-hidden">
           {/* Left Side: Blank as requested */}
@@ -279,10 +281,11 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
         </div>
       </main>
 
-      {/* 5. MINIMAL FOOTER */}
-      <footer className="max-w-6xl mx-auto w-full text-center py-2 text-[11px] text-[#9A938E] relative z-10">
-        <span>TrackShack • Digital Companion for Indian Small Businesses & Street Vendors</span>
-      </footer>
+        {/* 5. MINIMAL FOOTER */}
+        <footer className="w-full text-center py-2 text-[11px] text-[#9A938E] relative z-10">
+          <span>TrackShack • Digital Companion for Indian Small Businesses & Street Vendors</span>
+        </footer>
+      </div>
     </div>
   );
 }

@@ -11,13 +11,13 @@ export default function HomeBackgroundArt() {
     <>
       {/* Desktop & Tablet Background Artwork:
           - Primarily along the LEFT side of the homepage
-          - Occupies approx 20-30% of viewport width
+          - Occupies approx 20-25% of viewport width
           - Extends vertically from near top to near bottom of viewport
           - Behind all content with pointer-events: none
-          - Subtle opacity (~0.22) with multiply blending and soft radial mask feathering
+          - Enhanced visibility (~0.28) in the open left area with multiply blending
       */}
       <div 
-        className="pointer-events-none absolute left-0 top-0 bottom-0 z-0 overflow-hidden select-none w-[28vw] min-w-[280px] max-w-[480px] h-[95vh] max-h-[960px] opacity-[0.22] hidden sm:block"
+        className="pointer-events-none absolute left-0 top-0 bottom-0 z-0 overflow-hidden select-none w-[24vw] min-w-[260px] max-w-[440px] h-[95vh] max-h-[960px] opacity-[0.28] hidden sm:block"
         aria-hidden="true"
       >
         <img 

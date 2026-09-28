@@ -68,7 +68,7 @@ export default function DashboardScreen() {
   .slice(0, 5);
 
   return (
-    <div className="space-y-6 animate-in fade-in relative">
+    <div className="space-y-6 animate-in fade-in relative w-full lg:max-w-[960px] xl:max-w-[1020px] 2xl:max-w-[1060px] lg:ml-auto lg:mr-2 xl:mr-6 transition-all duration-300">
       {/* Subtle Hand-Painted Background Artwork: Person reading newspaper at cafe table */}
       <HomeBackgroundArt />
 
