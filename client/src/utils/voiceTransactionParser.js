@@ -1,8 +1,11 @@
 /**
- * Voice Transaction Parser (Phase 3B)
+ * Voice Transaction Parser (Phase 4A)
  *
  * Converts spoken voice transcripts (or natural text) into structured transaction drafts
- * for Sales and Expenses. Completely decoupled from database persistence.
+ * for Sales and Expenses. Supports natural language variations and multiple transactions
+ * in a single sentence.
+ *
+ * Completely decoupled from database persistence.
  */
 
 const SMALL_NUMBERS = {
@@ -123,14 +126,29 @@ export function extractAmount(transcript) {
 }
 
 /**
- * Determines transaction date. Defaults to today's local date.
+ * Detects whether the amount mentioned is approximate.
+ * e.g. "about 300 rupees", "around 500", "approximately 1000"
  */
-export function extractDate(transcript) {
+export function isApproximateAmount(transcript) {
+  if (!transcript || typeof transcript !== 'string') return false;
+  return /\b(about|around|approx\.?|approximately|roughly|nearly|almost)\b/i.test(transcript);
+}
+
+/**
+ * Determines transaction date.
+ * If sentence or clause contains "yesterday", returns yesterday.
+ * Otherwise returns fallbackDate or today's local date.
+ */
+export function extractDate(transcript, fallbackDate = null) {
   const clean = (transcript || '').toLowerCase();
   const d = new Date();
 
   if (clean.includes('yesterday')) {
     d.setDate(d.getDate() - 1);
+  } else if (clean.includes('today')) {
+    // Keep today's date
+  } else if (fallbackDate) {
+    return fallbackDate;
   }
 
   const year = d.getFullYear();
@@ -149,7 +167,7 @@ export function extractCustomerName(transcript) {
   const customerMatch = transcript.match(/\b(?:to|customer)\s+([A-Za-z0-9&'\s]+?)(?:\s+(?:for|of|on|worth|rupees|rs|\d|today|yesterday|$))/i);
   if (customerMatch && customerMatch[1]) {
     const name = customerMatch[1].trim();
-    if (name.length > 1 && !['a', 'an', 'the', 'my', 'his', 'her', 'our'].includes(name.toLowerCase())) {
+    if (name.length > 1 && !['a', 'an', 'the', 'my', 'his', 'her', 'our', 'auto'].includes(name.toLowerCase())) {
       return name;
     }
   }
@@ -158,7 +176,7 @@ export function extractCustomerName(transcript) {
   const supplierMatch = transcript.match(/\b(?:from|supplier)\s+([A-Za-z0-9&'\s]+?)(?:\s+(?:for|of|on|worth|rupees|rs|\d|today|yesterday|$))/i);
   if (supplierMatch && supplierMatch[1]) {
     const name = supplierMatch[1].trim();
-    if (name.length > 1 && !['a', 'an', 'the', 'my', 'his', 'her', 'our', 'wholesale'].includes(name.toLowerCase())) {
+    if (name.length > 1 && !['a', 'an', 'the', 'my', 'his', 'her', 'our', 'wholesale', 'fruits', 'vegetables', 'selling'].includes(name.toLowerCase())) {
       return name;
     }
   }
@@ -167,65 +185,38 @@ export function extractCustomerName(transcript) {
 }
 
 /**
- * Maps spoken keywords to exact existing form categories.
+ * Maps spoken / natural keywords to exact existing form categories.
  */
 export function extractCategory(transcript, type) {
   const clean = (transcript || '').toLowerCase();
 
   if (type === 'sale') {
     if (
-      clean.includes('vegetable') ||
-      clean.includes('veggie') ||
-      clean.includes('sabzi') ||
-      clean.includes('tomato') ||
-      clean.includes('onion') ||
-      clean.includes('potato')
+      /\b(vegetable|vegetables|veggie|veggies|sabzi|subzi|tomato|tomatoes|onion|onions|potato|potatoes|brinjal|carrot|cabbage|cauliflower|cucumber)\b/i.test(clean)
     ) {
       return 'Vegetables';
     }
 
     if (
-      clean.includes('fruit') ||
-      clean.includes('apple') ||
-      clean.includes('banana') ||
-      clean.includes('mango') ||
-      clean.includes('orange') ||
-      clean.includes('papaya')
+      /\b(fruit|fruits|apple|apples|banana|bananas|mango|mangoes|orange|oranges|papaya|grapes|watermelon)\b/i.test(clean)
     ) {
       return 'Fruits';
     }
 
     if (
-      clean.includes('street food') ||
-      clean.includes('chaat') ||
-      clean.includes('dosa') ||
-      clean.includes('idli') ||
-      clean.includes('samosa') ||
-      clean.includes('panipuri') ||
-      clean.includes('snacks')
+      /\b(street food|chaat|chat|dosa|idli|samosa|samosas|panipuri|pani puri|snacks|vada|vada pav|pav bhaji|bhel|bhelpuri)\b/i.test(clean)
     ) {
       return 'Street Food';
     }
 
     if (
-      clean.includes('grocery') ||
-      clean.includes('kirana') ||
-      clean.includes('provisions') ||
-      clean.includes('rice') ||
-      clean.includes('dal') ||
-      clean.includes('oil') ||
-      clean.includes('atta')
+      /\b(grocery|groceries|kirana|provisions?|rice|dal|oil|atta|flour|spices|pulses|sugar|milk)\b/i.test(clean)
     ) {
       return 'Grocery';
     }
 
     if (
-      clean.includes('cloth') ||
-      clean.includes('clothing') ||
-      clean.includes('garment') ||
-      clean.includes('saree') ||
-      clean.includes('shirt') ||
-      clean.includes('pants')
+      /\b(cloth|cloths|clothes|clothing|garment|garments|saree|sarees|sari|shirt|shirts|pants|trousers|dress|apparel)\b/i.test(clean)
     ) {
       return 'Clothing';
     }
@@ -236,46 +227,30 @@ export function extractCategory(transcript, type) {
   // Expense categories
   if (type === 'expense') {
     if (
-      clean.includes('transport') ||
-      clean.includes('auto') ||
-      clean.includes('tempo') ||
-      clean.includes('cargo') ||
-      clean.includes('bus') ||
-      clean.includes('petrol') ||
-      clean.includes('diesel') ||
-      clean.includes('fare')
+      /\b(transport|transportation|auto|tempo|cargo|bus|petrol|diesel|fuel|fare|cab|taxi|vehicle|delivery)\b/i.test(clean)
     ) {
       return 'Transport';
     }
 
-    if (clean.includes('rent') || clean.includes('stall rent') || clean.includes('room rent')) {
+    if (
+      /\b(shop rent|stall rent|room rent|store rent|rent)\b/i.test(clean)
+    ) {
       return 'Shop Rent';
     }
 
     if (
-      clean.includes('electric') ||
-      clean.includes('bill') ||
-      clean.includes('power') ||
-      clean.includes('current') ||
-      clean.includes('battery') ||
-      clean.includes('recharge')
+      /\b(electric|electricity|bills?|power|current|battery|recharge|mobile recharge|light bill|water bill)\b/i.test(clean)
     ) {
       return 'Electricity / Bills';
     }
 
     if (
-      clean.includes('tea') ||
-      clean.includes('chai') ||
-      clean.includes('coffee') ||
-      clean.includes('food') ||
-      clean.includes('lunch') ||
-      clean.includes('breakfast') ||
-      clean.includes('bun')
+      /\b(tea|chai|coffee|food|lunch|breakfast|dinner|snacks?|bun|biscuits?|refreshments?)\b/i.test(clean)
     ) {
       return 'Food & Tea';
     }
 
-    // Default wholesale stock/produce
+    // Default wholesale stock/produce ("bought stock", "purchased vegetables", "bought produce", etc.)
     return 'Stock / Purchases';
   }
 
@@ -283,80 +258,298 @@ export function extractCategory(transcript, type) {
 }
 
 /**
- * Main parser function: translates transcript into structured draft or clarification error.
+ * Splits a compound natural language sentence into independent transaction clauses.
+ * Does NOT blindly split every occurrence of "and" (e.g. "fruits and vegetables for 1000" remains one clause).
  */
-export function parseVoiceTransaction(transcript) {
-  if (!transcript || typeof transcript !== 'string' || !transcript.trim()) {
-    return {
-      success: false,
-      message: 'No transcript was provided. Please speak your sale or expense.',
-    };
+export function splitIntoClauses(transcript) {
+  if (!transcript || typeof transcript !== 'string') return [];
+  const text = transcript.trim();
+
+  // Pattern identifying the start of a financial action
+  const actionPattern = /\b(?:i\s+)?(?:sold|sell|selling|sales?|earned|earning|received|made\s+a\s+sale|spent|spend|spending|paid|bought|purchased?|costs?)\b/i;
+
+  // 1. Initial split on semicolons or distinct sentence breaks
+  const segments = text.split(/(?:;\s*|(?<=\D)\.\s+(?=[A-Z]|\b))/i);
+  const clauses = [];
+
+  for (const seg of segments) {
+    if (!seg.trim()) continue;
+
+    // 2. Split on explicit multi-part connectors like "and then", "and also", "then", "also", "plus"
+    const explicitSplit = seg.split(/\s*(?:,\s*|\s+)(?:and\s+then|and\s+also|then|also|plus)\s+/i);
+
+    for (const part of explicitSplit) {
+      if (!part.trim()) continue;
+
+      // 3. Conditional split on "and":
+      // An "and" splits into two transactions ONLY if:
+      // (a) followed by an action verb (e.g. "and spent 200 on transport", "and bought stock")
+      // OR
+      // (b) both preceding and succeeding clauses contain their own independent amount
+      const andParts = part.split(/\s+and\s+/i);
+
+      if (andParts.length > 1) {
+        let currentCombined = andParts[0];
+
+        for (let i = 1; i < andParts.length; i++) {
+          const nextPart = andParts[i];
+          const hasAction = actionPattern.test(nextPart);
+          const currentHasAmount = extractAmount(currentCombined) !== null;
+          const nextHasAmount = extractAmount(nextPart) !== null;
+
+          if (hasAction || (currentHasAmount && nextHasAmount)) {
+            clauses.push(currentCombined.trim());
+            currentCombined = nextPart;
+          } else {
+            // Compound noun phrase (e.g. "fruits and vegetables for 1000" or "tea and snacks for 50")
+            currentCombined += ' and ' + nextPart;
+          }
+        }
+        if (currentCombined.trim()) {
+          clauses.push(currentCombined.trim());
+        }
+      } else {
+        clauses.push(part.trim());
+      }
+    }
   }
 
-  const clean = transcript.trim().toLowerCase();
+  return clauses.filter(Boolean);
+}
 
-  // 1. Identify Sale vs Expense signals
-  const hasSaleSignal =
-    /\b(sold|sell|sales?|earned|earning|received|made a sale)\b/i.test(clean);
+/**
+ * Evaluates whether a clause is an ambiguous financial statement requiring user clarification.
+ * Examples:
+ * "I paid 500." -> Bare payment without purpose or recipient
+ * "I made 2000." -> Bare made without purpose, category, or sale wording
+ */
+function checkAmbiguity(clause) {
+  const clean = (clause || '').toLowerCase().trim();
 
-  const hasExpenseSignal =
-    /\b(spent|spend|spending|bought|purchased?|purchases?|paid on|paid for|paid to|costs?|expenses?)\b/i.test(clean);
-
-  // Requirement 9: Ambiguity handling
-  // "I paid 500" is ambiguous because "paid" alone could be credit, repayment, or incomplete.
+  // 1. Bare "paid 500" / "I paid 500"
   const isBarePaid =
     /\bi\s+paid\b/i.test(clean) &&
     !clean.includes('for') &&
-    !clean.includes('to') &&
     !clean.includes('on') &&
+    !clean.includes('to') &&
     !clean.includes('transport') &&
     !clean.includes('stock') &&
     !clean.includes('tea') &&
-    !clean.includes('rent');
+    !clean.includes('rent') &&
+    !clean.includes('auto') &&
+    !clean.includes('electricity') &&
+    !clean.includes('bill');
 
-  if (isBarePaid || (hasSaleSignal && hasExpenseSignal) || (!hasSaleSignal && !hasExpenseSignal)) {
+  // 2. Bare "I made 2000" / "made 2000"
+  const isBareMade =
+    /\bi\s+made\s+(?:₹|rs\.?|rupees?)?\s*\d+\s*(?:rs\.?|rupees?)?\.?$/i.test(clean) &&
+    !clean.includes('selling') &&
+    !clean.includes('sale') &&
+    !clean.includes('from') &&
+    !clean.includes('fruit') &&
+    !clean.includes('vegetable');
+
+  if (isBarePaid || isBareMade) {
+    const amt = extractAmount(clause);
+    const formatted = amt ? `₹${amt.toLocaleString('en-IN')}` : 'this amount';
     return {
-      success: false,
-      message:
-        "Please say whether this was a sale or an expense, for example: 'I sold vegetables for ₹500' or 'I spent ₹500 on transport.'",
+      isAmbiguous: true,
+      message: `Was the ${formatted} a sale or an expense? Please mention what it was for.`,
     };
   }
 
-  const type = hasSaleSignal ? 'sale' : 'expense';
+  return { isAmbiguous: false };
+}
 
-  // 2. Extract Amount
-  const amount = extractAmount(transcript);
-  if (!amount || amount <= 0) {
+/**
+ * Main parser: Parses single or multiple transactions from spoken or typed input (Phase 4A).
+ * Returns structured draft array, clarification notes, or ambiguity warnings.
+ */
+export function parseVoiceTransactions(transcript) {
+  if (!transcript || typeof transcript !== 'string' || !transcript.trim()) {
     return {
       success: false,
-      message:
-        "Could not detect an amount. Please specify the amount, for example: '₹500' or '500 rupees'.",
+      transactions: [],
+      message: 'No transcript was provided. Please speak or type your sale or expense.',
     };
   }
 
-  // 3. Extract Category
-  const category = extractCategory(transcript, type);
+  const rawClean = transcript.trim();
+  const lowerText = rawClean.toLowerCase();
 
-  // 4. Extract Date
-  const date = extractDate(transcript);
+  // Global date for the entire sentence (e.g. "Yesterday I sold ... and spent ...")
+  const globalDate = extractDate(lowerText);
 
-  // 5. Extract Customer / Supplier Name
-  const customerName = extractCustomerName(transcript);
+  // Check whole-string ambiguity first (e.g. "I paid 500." or "I made 2000.")
+  const globalAmbiguity = checkAmbiguity(rawClean);
+  if (globalAmbiguity.isAmbiguous) {
+    return {
+      success: false,
+      transactions: [],
+      isAmbiguous: true,
+      message: globalAmbiguity.message,
+    };
+  }
 
-  // 6. Build Note
-  const note = 'Voice entry';
+  // Split into independent clauses
+  const rawClauses = splitIntoClauses(rawClean);
+  const clauses = rawClauses.length > 0 ? rawClauses : [rawClean];
 
-  return {
-    success: true,
-    transaction: {
+  const transactions = [];
+  const incompleteClauses = [];
+
+  for (let i = 0; i < clauses.length; i++) {
+    const clause = clauses[i];
+    const cleanClause = clause.toLowerCase();
+
+    // Check clause-level ambiguity
+    const clauseAmbiguity = checkAmbiguity(clause);
+    if (clauseAmbiguity.isAmbiguous) {
+      return {
+        success: false,
+        transactions: [],
+        isAmbiguous: true,
+        message: clauseAmbiguity.message,
+      };
+    }
+
+    // 1. Identify Sale vs Expense signals
+    const hasSaleSignal =
+      /\b(sold|sell|selling|sales?|earned|earning|received|made a sale)\b/i.test(cleanClause) ||
+      /\b(made|got)\s+(?:₹|rs\.?|inr|rupees?)?\s*\d+.*(?:from|selling)/i.test(cleanClause);
+
+    const hasExpenseSignal =
+      /\b(spent|spend|spending|bought|purchased?|purchases?|paid on|paid for|paid to|paid \d+ for|costs?|expenses?)\b/i.test(cleanClause);
+
+    // 2. Check for missing amount on an active financial clause (Requirement 5)
+    const amount = extractAmount(clause);
+    if (!amount || amount <= 0) {
+      if (hasExpenseSignal || hasSaleSignal || cleanClause.includes('bought') || cleanClause.includes('stock')) {
+        let missingPurpose = 'next transaction';
+        if (cleanClause.includes('stock')) missingPurpose = 'stock purchase';
+        else if (cleanClause.includes('transport') || cleanClause.includes('auto')) missingPurpose = 'transport expense';
+        else if (cleanClause.includes('tea') || cleanClause.includes('food')) missingPurpose = 'food/tea expense';
+        else if (cleanClause.includes('rent')) missingPurpose = 'rent payment';
+        else if (hasExpenseSignal) missingPurpose = 'expense';
+        else if (hasSaleSignal) missingPurpose = 'sale';
+
+        incompleteClauses.push({ clause, missingPurpose });
+      }
+      continue;
+    }
+
+    // Determine type
+    let type = 'sale';
+    if (hasExpenseSignal && !hasSaleSignal) {
+      type = 'expense';
+    } else if (hasSaleSignal && !hasExpenseSignal) {
+      type = 'sale';
+    } else if (hasSaleSignal && hasExpenseSignal) {
+      // Clause has mixed signals; check dominant keyword
+      if (/\b(spent|bought|purchased|paid)\b/i.test(cleanClause)) {
+        type = 'expense';
+      } else {
+        type = 'sale';
+      }
+    } else {
+      // Neither signal explicit in this clause; infer from keywords
+      if (
+        cleanClause.includes('transport') ||
+        cleanClause.includes('auto') ||
+        cleanClause.includes('rent') ||
+        cleanClause.includes('bill') ||
+        cleanClause.includes('electric') ||
+        cleanClause.includes('tea')
+      ) {
+        type = 'expense';
+      } else {
+        type = 'sale';
+      }
+    }
+
+    // 3. Extract Category
+    const category = extractCategory(clause, type);
+
+    // 4. Extract Date (Clause date or global shared date)
+    const date = extractDate(clause, globalDate);
+
+    // 5. Extract Customer / Supplier
+    const customerName = extractCustomerName(clause);
+
+    // 6. Check if approximate
+    const approximate = isApproximateAmount(clause);
+
+    // 7. Assemble Draft
+    const draft = {
+      id: `draft-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
       type,
       amount,
       category,
       date,
       customerName,
-      note,
-    },
+      note: 'Voice entry',
+      ...(approximate ? { approximate: true } : {}),
+    };
+
+    transactions.push(draft);
+  }
+
+  // Handle case: At least one transaction detected, but another clause lacked an amount (Requirement 5)
+  if (transactions.length > 0 && incompleteClauses.length > 0) {
+    const missingDesc = incompleteClauses[0].missingPurpose;
+    const firstTx = transactions[0];
+    const clarification = `I understood the ₹${firstTx.amount} ${firstTx.type}, but I need the amount for the ${missingDesc}.`;
+
+    return {
+      success: true,
+      transactions,
+      clarification,
+    };
+  }
+
+  // Handle case: Transactions successfully parsed
+  if (transactions.length > 0) {
+    return {
+      success: true,
+      transactions,
+    };
+  }
+
+  // Handle case: Action detected but missing amount (no transactions created)
+  if (incompleteClauses.length > 0) {
+    return {
+      success: false,
+      transactions: [],
+      message: "Could not detect an amount. Please specify the amount, for example: '₹500' or '500 rupees'.",
+    };
+  }
+
+  // Fallback clarification
+  return {
+    success: false,
+    transactions: [],
+    message: "Please say whether this was a sale or an expense, for example: 'I sold vegetables for ₹500' or 'I spent ₹500 on transport.'",
   };
 }
 
-export default parseVoiceTransaction;
+/**
+ * Backward-compatible single-transaction parser wrapper (Phase 3B compatible).
+ */
+export function parseVoiceTransaction(transcript) {
+  const result = parseVoiceTransactions(transcript);
+  if (result.success && result.transactions && result.transactions.length > 0) {
+    return {
+      success: true,
+      transaction: result.transactions[0],
+      transactions: result.transactions,
+      clarification: result.clarification,
+    };
+  }
+
+  return {
+    success: false,
+    message: result.message || result.clarification || "Could not parse transaction.",
+  };
+}
+
+export default parseVoiceTransactions;

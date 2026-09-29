@@ -15,14 +15,14 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { processBusinessQuery } from '../utils/businessAssistantEngine';
+import { processBusinessQuery, detectIntent } from '../utils/businessAssistantEngine';
 import { 
   startSpeechRecognition, 
   stopSpeechRecognition, 
   abortSpeechRecognition, 
   isSpeechRecognitionSupported 
 } from '../utils/speechRecognition';
-import { parseVoiceTransaction } from '../utils/voiceTransactionParser';
+import { parseVoiceTransactions, extractAmount } from '../utils/voiceTransactionParser';
 
 /**
  * Default prompt suggestions for quick business questions.
@@ -37,7 +37,7 @@ const QUICK_SUGGESTIONS = [
 const INITIAL_WELCOME = 'Hi! I can help you with your sales, expenses, loans and reports.';
 
 /**
- * Modular hook / service stub for future Phase 3 integrations:
+ * Modular hook / service stub for future Phase integrations:
  * Can be replaced by or chained with external LLM services.
  */
 export async function queryBusinessAssistant(userInput, context = {}) {
@@ -136,15 +136,24 @@ export function AIBusinessAssistant() {
   };
 
   /**
-   * Action handler: Review a transaction draft by opening the existing prefilled form (Phase 3C)
+   * Action handler: Review a transaction draft by opening the existing prefilled form (Phase 3C / 4A)
    */
-  const handleReviewDraft = (msgId, draft) => {
+  const handleReviewDraft = (msgId, draftId, draft) => {
     if (!draft) return;
 
+    // Mark the specific draft as reviewed
     setMessages((prev) =>
-      prev.map((m) =>
-        m.id === msgId ? { ...m, isReviewed: true } : m
-      )
+      prev.map((m) => {
+        if (m.id !== msgId) return m;
+        const updatedDrafts = (m.drafts || []).map((d) =>
+          d.id === draftId ? { ...d, isReviewed: true } : d
+        );
+        return {
+          ...m,
+          drafts: updatedDrafts,
+          isReviewed: m.draft?.id === draftId ? true : m.isReviewed,
+        };
+      })
     );
 
     // Open existing form modal prefilled via AppContext mechanism
@@ -161,35 +170,50 @@ export function AIBusinessAssistant() {
         const typeLabel = draft.type === 'expense' ? 'Expense' : 'Sale';
         const formattedAmt = Number(savedEntry?.amount || draft.amount || 0).toLocaleString('en-IN');
         const successNotice = {
-          id: `saved-ack-${Date.now()}`,
+          id: `saved-ack-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           sender: 'assistant',
           text: `✓ ${typeLabel} of ₹${formattedAmt} recorded successfully.`,
           timestamp: formatCurrentTime(),
         };
-        setMessages((prev) => [...prev, successNotice]);
+        setMessages((prev) => {
+          const updated = prev.map((m) => {
+            if (m.id !== msgId) return m;
+            const updatedDrafts = (m.drafts || []).map((d) =>
+              d.id === draftId ? { ...d, isSaved: true, isReviewed: true } : d
+            );
+            return {
+              ...m,
+              drafts: updatedDrafts,
+              draft: m.draft?.id === draftId ? { ...m.draft, isSaved: true, isReviewed: true } : m.draft,
+            };
+          });
+          return [...updated, successNotice];
+        });
       },
     });
   };
 
   /**
-   * Action handler: Cancel and dismiss a transaction draft
+   * Action handler: Cancel and dismiss an individual transaction draft
    */
-  const handleCancelDraft = (msgId) => {
+  const handleCancelDraft = (msgId, draftId) => {
     setMessages((prev) =>
-      prev.map((m) =>
-        m.id === msgId
-          ? {
-              ...m,
-              draft: null,
-              text: 'Transaction draft cancelled.',
-            }
-          : m
-      )
+      prev.map((m) => {
+        if (m.id !== msgId) return m;
+        const updatedDrafts = (m.drafts || []).filter((d) => d.id !== draftId);
+        const allCancelled = updatedDrafts.length === 0;
+        return {
+          ...m,
+          drafts: updatedDrafts,
+          draft: m.draft?.id === draftId ? null : m.draft,
+          text: allCancelled ? 'Transaction draft(s) cancelled.' : m.text,
+        };
+      })
     );
   };
 
   /**
-   * Dispatches typed user message and calls business assistant engine with live AppContext snapshot
+   * Dispatches typed user message: checks for transaction entries vs business query intents
    */
   const handleSendMessage = async (textToSend) => {
     const query = (textToSend || inputText).trim();
@@ -206,7 +230,51 @@ export function AIBusinessAssistant() {
     setInputText('');
     setIsThinking(true);
 
-    // Build fresh snapshot of current financial context
+    // 1. Check if this is an explicit business question first (Phase 2A preservation)
+    const queryIntent = detectIntent(query);
+    const isExplicitBusinessQuestion = queryIntent !== 'UNKNOWN' && !extractAmount(query);
+
+    if (!isExplicitBusinessQuestion) {
+      // 2. Attempt to parse natural language transaction(s) (Phase 4A)
+      const parsed = parseVoiceTransactions(query);
+
+      if (parsed.success && parsed.transactions && parsed.transactions.length > 0) {
+        setIsThinking(false);
+        const count = parsed.transactions.length;
+        let introText =
+          count === 1
+            ? `I've prepared a ${parsed.transactions[0].type === 'sale' ? 'Sale' : 'Expense'} draft:`
+            : `I've prepared ${count} transaction drafts:`;
+
+        if (parsed.clarification) {
+          introText += `\n\n⚠️ ${parsed.clarification}`;
+        }
+
+        const assistantDraftReply = {
+          id: `assistant-draft-${Date.now()}`,
+          sender: 'assistant',
+          text: introText,
+          drafts: parsed.transactions,
+          timestamp: formatCurrentTime(),
+        };
+        setMessages((prev) => [...prev, assistantDraftReply]);
+        return;
+      }
+
+      if (parsed.isAmbiguous || (parsed.clarification && (!parsed.transactions || parsed.transactions.length === 0))) {
+        setIsThinking(false);
+        const assistantClarifyReply = {
+          id: `assistant-clarify-${Date.now()}`,
+          sender: 'assistant',
+          text: parsed.message || parsed.clarification,
+          timestamp: formatCurrentTime(),
+        };
+        setMessages((prev) => [...prev, assistantClarifyReply]);
+        return;
+      }
+    }
+
+    // 3. Fallback / Route to Business Knowledge Engine
     const financialSnapshot = {
       sales,
       expenses,
@@ -250,7 +318,7 @@ export function AIBusinessAssistant() {
   };
 
   /**
-   * Native Web Speech API recognition handler with Phase 3B Transaction Draft Parsing
+   * Native Web Speech API recognition handler with Phase 4A Multi-Transaction Draft Parsing
    */
   const handleMicClick = () => {
     // If currently listening, user tap cancels/stops listening
@@ -295,28 +363,80 @@ export function AIBusinessAssistant() {
           isVoice: true,
         };
 
-        // Phase 3B: Parse voice transcript into structured Transaction Draft
-        const parsed = parseVoiceTransaction(transcript);
+        // 1. Check if this is an explicit spoken business query first
+        const queryIntent = detectIntent(transcript);
+        const isExplicitBusinessQuestion = queryIntent !== 'UNKNOWN' && !extractAmount(transcript);
 
-        if (parsed.success) {
-          const assistantDraftReply = {
-            id: `assistant-draft-${Date.now() + 1}`,
+        if (!isExplicitBusinessQuestion) {
+          // 2. Parse voice transcript into structured Transaction Drafts (Phase 4A)
+          const parsed = parseVoiceTransactions(transcript);
+
+          if (parsed.success && parsed.transactions && parsed.transactions.length > 0) {
+            const count = parsed.transactions.length;
+            let introText =
+              count === 1
+                ? `I've prepared a ${parsed.transactions[0].type === 'sale' ? 'Sale' : 'Expense'} draft from your voice input:`
+                : `I've prepared ${count} transaction drafts from your voice input:`;
+
+            if (parsed.clarification) {
+              introText += `\n\n⚠️ ${parsed.clarification}`;
+            }
+
+            const assistantDraftReply = {
+              id: `assistant-draft-${Date.now() + 1}`,
+              sender: 'assistant',
+              text: introText,
+              drafts: parsed.transactions,
+              timestamp: formatCurrentTime(),
+            };
+            setMessages((prev) => [...prev, voiceUserMessage, assistantDraftReply]);
+            return;
+          } else if (parsed.isAmbiguous) {
+            const assistantClarifyReply = {
+              id: `assistant-clarify-${Date.now() + 1}`,
+              sender: 'assistant',
+              text: `🎙️ Heard: "${transcript}"\n\n${parsed.message}`,
+              timestamp: formatCurrentTime(),
+            };
+            setMessages((prev) => [...prev, voiceUserMessage, assistantClarifyReply]);
+            return;
+          }
+        }
+
+        // 3. Spoken Business Question: run through businessAssistantEngine
+        const financialSnapshot = {
+          sales,
+          expenses,
+          loans,
+          activeLoans,
+          todaySalesTotal,
+          todayExpensesTotal,
+          todayRepaymentsTotal,
+          moneyLeft,
+          totalLoanRemaining,
+          totalOriginalLoan,
+          totalRepaidSoFar,
+          nextRepaymentLoan,
+          profile,
+        };
+
+        processBusinessQuery(transcript, financialSnapshot).then((result) => {
+          const assistantReply = {
+            id: `assistant-${Date.now() + 1}`,
             sender: 'assistant',
-            text: `I've prepared a ${parsed.transaction.type === 'sale' ? 'Sale' : 'Expense'} draft from your voice input:`,
-            draft: parsed.transaction,
-            isReviewed: false,
+            text: result.reply,
             timestamp: formatCurrentTime(),
           };
-          setMessages((prev) => [...prev, voiceUserMessage, assistantDraftReply]);
-        } else {
+          setMessages((prev) => [...prev, voiceUserMessage, assistantReply]);
+        }).catch(() => {
           const assistantClarifyReply = {
             id: `assistant-clarify-${Date.now() + 1}`,
             sender: 'assistant',
-            text: `🎙️ Heard: "${transcript}"\n\n${parsed.message}`,
+            text: `🎙️ Heard: "${transcript}"\n\nPlease say whether this was a sale or an expense, or ask about your sales, balance, or loans.`,
             timestamp: formatCurrentTime(),
           };
           setMessages((prev) => [...prev, voiceUserMessage, assistantClarifyReply]);
-        }
+        });
       },
       onError: (err) => {
         setIsListening(false);
@@ -382,7 +502,7 @@ export function AIBusinessAssistant() {
                     Business Assistant
                   </h3>
                   <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
-                    {isListening ? 'Listening...' : 'Phase 3C'}
+                    {isListening ? 'Listening...' : 'Phase 4A'}
                   </span>
                 </div>
                 <p className="text-[11px] text-[#7C746F]">
@@ -405,6 +525,8 @@ export function AIBusinessAssistant() {
           <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#FCFAF7]">
             {messages.map((msg) => {
               const isAssistant = msg.sender === 'assistant';
+              const activeDrafts = msg.drafts || (msg.draft ? [msg.draft] : []);
+
               return (
                 <div
                   key={msg.id}
@@ -431,96 +553,122 @@ export function AIBusinessAssistant() {
                       )}
                       {msg.text}
 
-                      {/* Phase 3B: Structured Transaction Draft Card */}
-                      {msg.draft && (
-                        <div className="mt-3 p-3 bg-[#FAF7F2] rounded-2xl border border-[#EBE3D7] shadow-soft space-y-2.5 text-xs text-[#2D2825]">
-                          {/* Card Header & Type Badge */}
-                          <div className="flex items-center justify-between border-b border-[#EBE3D7]/70 pb-2">
-                            <div className="flex items-center gap-1.5 font-bold">
-                              {msg.draft.type === 'sale' ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
-                                  <TrendingUp className="w-3.5 h-3.5" />
-                                  Sale Draft
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F8ECE6] text-[#BF745F] border border-[#F0D7CD]">
-                                  <TrendingDown className="w-3.5 h-3.5" />
-                                  Expense Draft
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-[#7C746F] font-semibold">
-                              Draft Ready
-                            </span>
-                          </div>
+                      {/* Phase 4A: Structured Transaction Draft Cards (Single or Multiple) */}
+                      {activeDrafts.length > 0 && (
+                        <div className="mt-3 space-y-2.5">
+                          {activeDrafts.map((draft, dIdx) => {
+                            const draftId = draft.id || `draft-${msg.id}-${dIdx}`;
+                            return (
+                              <div
+                                key={draftId}
+                                className="p-3 bg-[#FAF7F2] rounded-2xl border border-[#EBE3D7] shadow-soft space-y-2 text-xs text-[#2D2825]"
+                              >
+                                {/* Card Header & Type Badge */}
+                                <div className="flex items-center justify-between border-b border-[#EBE3D7]/70 pb-2">
+                                  <div className="flex items-center gap-1.5 font-bold">
+                                    {draft.type === 'sale' ? (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
+                                        <TrendingUp className="w-3.5 h-3.5" />
+                                        Sale Draft
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F8ECE6] text-[#BF745F] border border-[#F0D7CD]">
+                                        <TrendingDown className="w-3.5 h-3.5" />
+                                        Expense Draft
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-[#7C746F] font-semibold">
+                                    {draft.isSaved
+                                      ? 'Saved'
+                                      : draft.isReviewed
+                                      ? 'Under Review'
+                                      : 'Draft Ready'}
+                                  </span>
+                                </div>
 
-                          {/* Card Fields */}
-                          <div className="space-y-1.5 text-xs">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[#7C746F]">Amount:</span>
-                              <span className="font-serif font-bold text-sm text-[#2D2825]">
-                                ₹{Number(msg.draft.amount || 0).toLocaleString('en-IN')}
-                              </span>
-                            </div>
+                                {/* Card Fields */}
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[#7C746F]">Amount:</span>
+                                    <span className="font-serif font-bold text-sm text-[#2D2825]">
+                                      ₹{Number(draft.amount || 0).toLocaleString('en-IN')}
+                                      {draft.approximate ? (
+                                        <span className="ml-1 text-[10px] text-[#A09891] font-normal italic">
+                                          (approx)
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                  </div>
 
-                            <div className="flex items-center justify-between">
-                              <span className="text-[#7C746F]">Category:</span>
-                              <span className="font-semibold text-[#48433F]">{msg.draft.category}</span>
-                            </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[#7C746F]">Category:</span>
+                                    <span className="font-semibold text-[#48433F]">{draft.category}</span>
+                                  </div>
 
-                            <div className="flex items-center justify-between">
-                              <span className="text-[#7C746F]">Date:</span>
-                              <span className="font-medium text-[#605955]">{msg.draft.date}</span>
-                            </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[#7C746F]">Date:</span>
+                                    <span className="font-medium text-[#605955]">{draft.date}</span>
+                                  </div>
 
-                            {msg.draft.customerName ? (
-                              <div className="flex items-center justify-between">
-                                <span className="text-[#7C746F]">
-                                  {msg.draft.type === 'sale' ? 'Customer:' : 'Supplier:'}
-                                </span>
-                                <span className="font-semibold text-[#2D2825]">{msg.draft.customerName}</span>
+                                  {draft.customerName ? (
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[#7C746F]">
+                                        {draft.type === 'sale' ? 'Customer:' : 'Supplier:'}
+                                      </span>
+                                      <span className="font-semibold text-[#2D2825]">{draft.customerName}</span>
+                                    </div>
+                                  ) : null}
+
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[#7C746F]">Note:</span>
+                                    <span className="font-medium text-[#7C746F] italic">{draft.note}</span>
+                                  </div>
+                                </div>
+
+                                {/* Card Actions (Review / Cancel) */}
+                                {draft.isSaved ? (
+                                  <div className="mt-2 pt-2 border-t border-[#EBE3D7]/70 flex items-center justify-between text-[11px] font-semibold text-[#566E54] bg-[#E9EFE8]/50 p-2 rounded-xl">
+                                    <div className="flex items-center gap-1.5">
+                                      <CheckCircle2 className="w-4 h-4 text-[#566E54] shrink-0" />
+                                      <span>Recorded successfully in records</span>
+                                    </div>
+                                  </div>
+                                ) : draft.isReviewed ? (
+                                  <div className="mt-2 pt-2 border-t border-[#EBE3D7]/70 flex items-center justify-between text-[11px] font-semibold text-[#566E54] bg-[#E9EFE8]/50 p-2 rounded-xl">
+                                    <div className="flex items-center gap-1.5">
+                                      <CheckCircle2 className="w-4 h-4 text-[#566E54] shrink-0" />
+                                      <span>Form opened. Review & click Save.</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleReviewDraft(msg.id, draftId, draft)}
+                                      className="text-[10px] text-[#425541] font-bold underline hover:no-underline ml-1 shrink-0"
+                                    >
+                                      Re-open
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="mt-2.5 pt-2 border-t border-[#EBE3D7]/70 flex items-center justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCancelDraft(msg.id, draftId)}
+                                      className="px-3 py-1.5 rounded-full text-xs font-semibold text-[#7C746F] hover:text-[#2D2825] hover:bg-[#F3EDE3] border border-[#EBE3D7] transition touch-press"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleReviewDraft(msg.id, draftId, draft)}
+                                      className="px-3.5 py-1.5 rounded-full text-xs font-bold text-white bg-[#566E54] hover:bg-[#465B44] transition shadow-soft touch-press"
+                                    >
+                                      Review
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                            ) : null}
-
-                            <div className="flex items-center justify-between">
-                              <span className="text-[#7C746F]">Note:</span>
-                              <span className="font-medium text-[#7C746F] italic">{msg.draft.note}</span>
-                            </div>
-                          </div>
-
-                          {/* Card Actions (Review / Cancel) */}
-                          {msg.isReviewed ? (
-                            <div className="mt-2 pt-2 border-t border-[#EBE3D7]/70 flex items-center justify-between text-[11px] font-semibold text-[#566E54] bg-[#E9EFE8]/50 p-2 rounded-xl">
-                              <div className="flex items-center gap-1.5">
-                                <CheckCircle2 className="w-4 h-4 text-[#566E54] shrink-0" />
-                                <span>Form opened for review. Check & click Save.</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleReviewDraft(msg.id, msg.draft)}
-                                className="text-[10px] text-[#425541] font-bold underline hover:no-underline ml-1 shrink-0"
-                              >
-                                Re-open
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="mt-2.5 pt-2 border-t border-[#EBE3D7]/70 flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleCancelDraft(msg.id)}
-                                className="px-3 py-1.5 rounded-full text-xs font-semibold text-[#7C746F] hover:text-[#2D2825] hover:bg-[#F3EDE3] border border-[#EBE3D7] transition touch-press"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleReviewDraft(msg.id, msg.draft)}
-                                className="px-3.5 py-1.5 rounded-full text-xs font-bold text-white bg-[#566E54] hover:bg-[#465B44] transition shadow-soft touch-press"
-                              >
-                                Review
-                              </button>
-                            </div>
-                          )}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -589,7 +737,7 @@ export function AIBusinessAssistant() {
                 <span className="font-bold text-[#BF745F]">Listening... Speak clearly</span>
               </div>
               <span className="text-[10px] text-[#A65B46] italic">
-                e.g. "Today I sold vegetables for 500 rupees"
+                e.g. "Today I sold vegetables for 800 and spent 200 on transport"
               </span>
             </div>
           )}
@@ -639,7 +787,7 @@ export function AIBusinessAssistant() {
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={isListening ? 'Listening to speech...' : 'Ask about sales, loans, expenses, balance...'}
+              placeholder={isListening ? 'Listening to speech...' : 'Type or speak: sales, expenses, loans...'}
               className="flex-1 text-xs sm:text-sm bg-[#FAF7F2] border border-[#EBE3D7] rounded-full px-3.5 py-2 text-[#2D2825] placeholder:text-[#A09891] focus:outline-none focus:border-[#566E54] focus:ring-1 focus:ring-[#566E54] transition"
               disabled={isThinking || isListening}
             />
@@ -659,7 +807,7 @@ export function AIBusinessAssistant() {
           {/* Footer note */}
           <div className="px-4 py-1.5 bg-[#FAF7F2] border-t border-[#EBE3D7] flex items-center justify-center gap-1 text-[10px] text-[#7C746F]">
             <Info className="w-3 h-3 text-[#A09891]" />
-            <span>Voice Form Autofill • Phase 3C</span>
+            <span>Voice & Text Multi-Draft Autofill • Phase 4A</span>
           </div>
         </div>
       )}
