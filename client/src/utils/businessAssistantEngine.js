@@ -1364,4 +1364,201 @@ export async function processBusinessQuery(query, context = {}) {
   };
 }
 
+/**
+ * Severity ranking for deterministic alert sorting: critical -> warning -> info
+ */
+const ALERT_SEVERITY_ORDER = {
+  critical: 0,
+  warning: 1,
+  info: 2,
+};
+
+/**
+ * Generates proactive smart business alerts based on the current financial snapshot (Phase 6A.1).
+ *
+ * Rules:
+ * 1. OVERDUE LOAN: loan.nextDueDate is before today and loan.remainingAmount > 0 (critical)
+ * 2. LOAN DUE TODAY: loan.nextDueDate equals today and loan.remainingAmount > 0 (warning)
+ * 3. LOAN DUE SOON: loan.nextDueDate is 1 or 2 days after today and loan.remainingAmount > 0 (info)
+ * 4. NEGATIVE TODAY CASH FLOW: today's sales - today's expenses - today's repayments < 0 (warning)
+ * 5. NO SALES WITH EXPENSES: today's sales === 0 and today's expenses > 0 (info)
+ * 6. HIGH EXPENSE: today's expenses > 2 * 7-day average daily expenses and > 0 (warning)
+ * 7. SALES DROP: this week's sales are > 25% lower than last week's sales (and last week > 0) (info)
+ *
+ * @param {Object} context - AppContext financial snapshot (sales, expenses, loans, etc.)
+ * @returns {Array<Object>} Sorted list of active alert objects
+ */
+export function generateSmartAlerts(context = {}) {
+  const alerts = [];
+  const todayStr = getTodayDateString();
+  const [tYear, tMonth, tDate] = todayStr.split('-').map(Number);
+  const todayDateObj = new Date(tYear, tMonth - 1, tDate);
+
+  // -------------------------------------------------------------
+  // 1, 2, 3. Loan Alerts (Overdue, Due Today, Due Soon)
+  // -------------------------------------------------------------
+  const loans = context.activeLoans || (context.loans || []).filter((l) => l && l.status !== 'Completed');
+
+  // Track loan IDs to ensure no duplicate alerts per loan
+  const processedLoanIds = new Set();
+
+  loans.forEach((loan) => {
+    if (!loan || !loan.id || processedLoanIds.has(loan.id)) return;
+    const remaining = Number(loan.remainingAmount || 0);
+    if (remaining <= 0) return;
+
+    if (!loan.nextDueDate) return;
+    const cleanDueDate = String(loan.nextDueDate).split('T')[0];
+    const [dYear, dMonth, dDate] = cleanDueDate.split('-').map(Number);
+    if (isNaN(dYear) || isNaN(dMonth) || isNaN(dDate)) return;
+
+    const dueDateObj = new Date(dYear, dMonth - 1, dDate);
+    const diffDays = Math.round((dueDateObj - todayDateObj) / (1000 * 60 * 60 * 24));
+    const loanName = loan.name || 'Microloan';
+    const lenderName = loan.lender ? ` (${loan.lender})` : '';
+    const installment = formatCurrency(loan.repaymentAmount || 0);
+
+    if (diffDays < 0) {
+      // 1. OVERDUE LOAN (critical)
+      processedLoanIds.add(loan.id);
+      alerts.push({
+        id: `alert-overdue-${loan.id}`,
+        severity: 'critical',
+        type: 'overdue_loan',
+        title: `Overdue Loan: ${loanName}`,
+        message: `Instalment for ${loanName}${lenderName} was due on ${cleanDueDate} (₹${formatCurrency(remaining)} remaining balance).`,
+        actionLabel: 'Log Repayment',
+      });
+    } else if (diffDays === 0) {
+      // 2. LOAN DUE TODAY (warning)
+      processedLoanIds.add(loan.id);
+      alerts.push({
+        id: `alert-due-today-${loan.id}`,
+        severity: 'warning',
+        type: 'loan_due_today',
+        title: `Repayment Due Today: ${loanName}`,
+        message: `Instalment of ₹${installment} for ${loanName}${lenderName} is scheduled for today.`,
+        actionLabel: 'Log Repayment',
+      });
+    } else if (diffDays === 1 || diffDays === 2) {
+      // 3. LOAN DUE SOON (info)
+      processedLoanIds.add(loan.id);
+      const dayText = diffDays === 1 ? 'tomorrow' : 'in 2 days';
+      alerts.push({
+        id: `alert-due-soon-${loan.id}`,
+        severity: 'info',
+        type: 'loan_due_soon',
+        title: `Upcoming Repayment: ${loanName}`,
+        message: `Instalment of ₹${installment} for ${loanName}${lenderName} is due ${dayText} (${cleanDueDate}).`,
+        actionLabel: 'View Loan',
+      });
+    }
+  });
+
+  // -------------------------------------------------------------
+  // Compute Today's Figures (resilient to pre-computed or raw data)
+  // -------------------------------------------------------------
+  const todaySalesTotal = context.todaySalesTotal !== undefined
+    ? Number(context.todaySalesTotal || 0)
+    : filterByDateRange(context.sales || [], todayStr, todayStr).reduce((sum, s) => sum + Number(s?.amount || 0), 0);
+
+  const todayExpensesTotal = context.todayExpensesTotal !== undefined
+    ? Number(context.todayExpensesTotal || 0)
+    : filterByDateRange(context.expenses || [], todayStr, todayStr).reduce((sum, e) => sum + Number(e?.amount || 0), 0);
+
+  const todayRepaymentsTotal = context.todayRepaymentsTotal !== undefined
+    ? Number(context.todayRepaymentsTotal || 0)
+    : getRepaymentsInDateRange(context.loans || [], todayStr, todayStr).reduce((sum, r) => sum + Number(r?.amount || 0), 0);
+
+  const todayNetCashFlow = todaySalesTotal - todayExpensesTotal - todayRepaymentsTotal;
+
+  // -------------------------------------------------------------
+  // 4. NEGATIVE TODAY CASH FLOW (warning)
+  // -------------------------------------------------------------
+  if (todayNetCashFlow < 0) {
+    alerts.push({
+      id: 'alert-negative-cash-flow',
+      severity: 'warning',
+      type: 'negative_cash_flow',
+      title: "Negative Today's Cash Flow",
+      message: `Today's expenses (₹${formatCurrency(todayExpensesTotal)}) and repayments (₹${formatCurrency(todayRepaymentsTotal)}) exceed today's sales (₹${formatCurrency(todaySalesTotal)}) by ₹${formatCurrency(Math.abs(todayNetCashFlow))}.`,
+      actionLabel: 'View Cash Flow',
+    });
+  }
+
+  // -------------------------------------------------------------
+  // 5. NO SALES WITH EXPENSES (info)
+  // -------------------------------------------------------------
+  if (todaySalesTotal === 0 && todayExpensesTotal > 0) {
+    alerts.push({
+      id: 'alert-no-sales-with-expenses',
+      severity: 'info',
+      type: 'no_sales_with_expenses',
+      title: 'Expenses Recorded Without Sales',
+      message: `You have recorded ₹${formatCurrency(todayExpensesTotal)} in expenses today, but haven't recorded any customer sales yet.`,
+      actionLabel: 'Add Sale',
+    });
+  }
+
+  // -------------------------------------------------------------
+  // 6. HIGH EXPENSE (warning)
+  // today's expenses are more than 2x the 7-day average daily expenses, and today's expenses > 0
+  // -------------------------------------------------------------
+  if (todayExpensesTotal > 0) {
+    const sevenDaysAgoDate = new Date(tYear, tMonth - 1, tDate - 6);
+    const sevenDaysAgoStr = `${sevenDaysAgoDate.getFullYear()}-${String(sevenDaysAgoDate.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgoDate.getDate()).padStart(2, '0')}`;
+    const last7DaysExpenses = filterByDateRange(context.expenses || [], sevenDaysAgoStr, todayStr);
+    const total7DayExpenses = last7DaysExpenses.reduce((sum, e) => sum + Number(e?.amount || 0), 0);
+    const avg7DayDaily = total7DayExpenses / 7;
+
+    if (avg7DayDaily > 0 && todayExpensesTotal > 2 * avg7DayDaily) {
+      alerts.push({
+        id: 'alert-high-expense',
+        severity: 'warning',
+        type: 'high_expense',
+        title: 'Unusually High Expenses Today',
+        message: `Today's expenses of ₹${formatCurrency(todayExpensesTotal)} are more than double your 7-day daily average of ₹${formatCurrency(Math.round(avg7DayDaily))}.`,
+        actionLabel: 'Review Expenses',
+      });
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 7. SALES DROP (info)
+  // compare this week's sales with last week's sales (last week > 0 and this week > 25% lower)
+  // -------------------------------------------------------------
+  const thisWeekRange = getDateRangeForPeriod('this_week');
+  const lastWeekRange = getDateRangeForPeriod('last_week');
+  const thisWeekSales = filterByDateRange(context.sales || [], thisWeekRange.startDate, thisWeekRange.endDate);
+  const lastWeekSales = filterByDateRange(context.sales || [], lastWeekRange.startDate, lastWeekRange.endDate);
+  const thisWeekSalesTotal = thisWeekSales.reduce((sum, s) => sum + Number(s?.amount || 0), 0);
+  const lastWeekSalesTotal = lastWeekSales.reduce((sum, s) => sum + Number(s?.amount || 0), 0);
+
+  if (lastWeekSalesTotal > 0 && thisWeekSalesTotal < lastWeekSalesTotal * 0.75) {
+    const dropPct = Math.round(((lastWeekSalesTotal - thisWeekSalesTotal) / lastWeekSalesTotal) * 100);
+    alerts.push({
+      id: 'alert-sales-drop',
+      severity: 'info',
+      type: 'sales_drop',
+      title: 'Weekly Sales Decline',
+      message: `This week's sales of ₹${formatCurrency(thisWeekSalesTotal)} are ${dropPct}% lower than last week's sales (₹${formatCurrency(lastWeekSalesTotal)}).`,
+      actionLabel: 'View Sales',
+    });
+  }
+
+  // -------------------------------------------------------------
+  // Sort alerts: critical -> warning -> info, then stable id order
+  // -------------------------------------------------------------
+  alerts.sort((a, b) => {
+    const orderA = ALERT_SEVERITY_ORDER[a.severity] ?? 99;
+    const orderB = ALERT_SEVERITY_ORDER[b.severity] ?? 99;
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    return a.id.localeCompare(b.id);
+  });
+
+  return alerts;
+}
+
 export default processBusinessQuery;

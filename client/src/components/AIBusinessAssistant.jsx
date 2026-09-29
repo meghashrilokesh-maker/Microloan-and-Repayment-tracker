@@ -15,7 +15,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { processBusinessQuery, detectIntent } from '../utils/businessAssistantEngine';
+import { processBusinessQuery, detectIntent, generateSmartAlerts } from '../utils/businessAssistantEngine';
 import { 
   startSpeechRecognition, 
   stopSpeechRecognition, 
@@ -28,13 +28,67 @@ import { parseVoiceTransactions, extractAmount } from '../utils/voiceTransaction
  * Default prompt suggestions for quick business questions.
  */
 const QUICK_SUGGESTIONS = [
+  'What needs my attention?',
+  'Any alerts?',
   'How much did I earn from vegetables this month?',
   'How much loan do I still owe?',
-  'Compare this month with last month',
-  'Where am I spending the most?',
 ];
 
 const INITIAL_WELCOME = 'Hi! I can help you with your sales, expenses, loans and reports.';
+
+/**
+ * Identifies if a query is asking for business alerts or warnings (Phase 6A).
+ */
+function isAlertQuery(query) {
+  if (!query || typeof query !== 'string') return false;
+  const clean = query.trim().toLowerCase();
+  return (
+    clean.includes('any alert') ||
+    clean.includes('any alerts') ||
+    clean.includes('are there any alert') ||
+    clean.includes('what needs my attention') ||
+    clean.includes('what needs attention') ||
+    clean.includes('needs my attention') ||
+    clean.includes('needs attention') ||
+    clean.includes('show warnings') ||
+    clean.includes('show warning') ||
+    clean.includes('show alerts') ||
+    clean.includes('show alert') ||
+    clean.includes('show me alerts') ||
+    clean.includes('show me warnings') ||
+    clean.includes('do i have any alerts') ||
+    clean.includes('do i have alerts') ||
+    clean.includes('do i have any warnings') ||
+    clean.includes('do i have warnings') ||
+    clean.includes('any warnings') ||
+    clean.includes('any warning') ||
+    clean.includes('check alerts') ||
+    clean.includes('my alerts') ||
+    clean.includes('business alerts') ||
+    clean.includes('smart alerts') ||
+    clean.includes('urgent alerts') ||
+    clean === 'alerts' ||
+    clean === 'warnings' ||
+    clean === 'alert' ||
+    clean === 'warning'
+  );
+}
+
+/**
+ * Formats a conversational answer for proactive smart alerts (Phase 6A).
+ */
+function formatSmartAlertsAnswer(alerts) {
+  if (!alerts || alerts.length === 0) {
+    return "Everything looks normal right now. I don't see any urgent alerts.";
+  }
+
+  const lines = alerts.map((a) => {
+    const icon = a.severity === 'critical' ? '🔴' : a.severity === 'warning' ? '⚠️' : 'ℹ️';
+    return `${icon} [${a.severity.toUpperCase()}] ${a.title}\n${a.message}`;
+  });
+
+  return `Here is what needs your attention right now:\n\n${lines.join('\n\n')}`;
+}
 
 /**
  * Modular hook / service stub for future Phase integrations:
@@ -135,6 +189,55 @@ export function AIBusinessAssistant() {
     return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Phase 6A: Shared financial snapshot for Business Assistant & Smart Alerts
+  const financialSnapshot = {
+    sales,
+    expenses,
+    loans,
+    activeLoans,
+    todaySalesTotal,
+    todayExpensesTotal,
+    todayRepaymentsTotal,
+    moneyLeft,
+    totalLoanRemaining,
+    totalOriginalLoan,
+    totalRepaidSoFar,
+    nextRepaymentLoan,
+    profile,
+  };
+
+  // Phase 6A: Smart Alerts computation & session-level dismissal state
+  const [dismissedAlertIds, setDismissedAlertIds] = useState(() => new Set());
+
+  const allAlerts = generateSmartAlerts(financialSnapshot);
+  const activeAlerts = allAlerts.filter((a) => !dismissedAlertIds.has(a.id));
+  const topAlerts = activeAlerts.slice(0, 2);
+
+  const hasCriticalOrWarningAlert = activeAlerts.some(
+    (a) => a.severity === 'critical' || a.severity === 'warning'
+  );
+  const hasCriticalAlert = activeAlerts.some((a) => a.severity === 'critical');
+
+  const handleDismissAlert = (alertId) => {
+    setDismissedAlertIds((prev) => {
+      const next = new Set(prev);
+      next.add(alertId);
+      return next;
+    });
+  };
+
+  const handleAlertAction = (alert) => {
+    if (alert.actionLabel === 'Add Sale') {
+      openTransactionModal({ type: 'sale', initialValues: null });
+    } else if (alert.actionLabel === 'Review Expenses') {
+      openTransactionModal({ type: 'expense', initialValues: null });
+    }
+  };
+
+  const hasActionHandler = (alert) => {
+    return alert.actionLabel === 'Add Sale' || alert.actionLabel === 'Review Expenses';
+  };
+
   /**
    * Action handler: Review a transaction draft by opening the existing prefilled form (Phase 3C / 4A)
    */
@@ -229,6 +332,21 @@ export function AIBusinessAssistant() {
     setMessages((prev) => [...prev, userMessage]);
     setInputText('');
     setIsThinking(true);
+
+    // Phase 6A: Intercept alert queries first (e.g. 'What needs my attention?', 'Any alerts?')
+    if (isAlertQuery(query)) {
+      setTimeout(() => {
+        const assistantReply = {
+          id: `assistant-${Date.now()}`,
+          sender: 'assistant',
+          text: formatSmartAlertsAnswer(activeAlerts),
+          timestamp: formatCurrentTime(),
+        };
+        setMessages((prev) => [...prev, assistantReply]);
+        setIsThinking(false);
+      }, 250);
+      return;
+    }
 
     // 1. Check if this is an explicit business question first (Phase 2A preservation)
     const queryIntent = detectIntent(query);
@@ -363,6 +481,18 @@ export function AIBusinessAssistant() {
           isVoice: true,
         };
 
+        // Phase 6A: Intercept alert queries first (e.g. 'What needs my attention?', 'Any alerts?')
+        if (isAlertQuery(transcript)) {
+          const assistantReply = {
+            id: `assistant-${Date.now() + 1}`,
+            sender: 'assistant',
+            text: formatSmartAlertsAnswer(activeAlerts),
+            timestamp: formatCurrentTime(),
+          };
+          setMessages((prev) => [...prev, voiceUserMessage, assistantReply]);
+          return;
+        }
+
         // 1. Check if this is an explicit spoken business query first
         const queryIntent = detectIntent(transcript);
         const isExplicitBusinessQuestion = queryIntent !== 'UNKNOWN' && !extractAmount(transcript);
@@ -471,7 +601,14 @@ export function AIBusinessAssistant() {
         >
           <div className="relative flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-[#FAF7F2] animate-pulse" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#BF745F] rounded-full ring-2 ring-white" />
+            {hasCriticalOrWarningAlert && (
+              <span
+                className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-white ${
+                  hasCriticalAlert ? 'bg-[#BF745F]' : 'bg-[#D97706]'
+                }`}
+                title={hasCriticalAlert ? 'Critical alert' : 'Warning alert'}
+              />
+            )}
           </div>
           <span className="font-semibold text-xs sm:text-sm tracking-wide pr-0.5">
             Business Assistant
@@ -502,7 +639,7 @@ export function AIBusinessAssistant() {
                     Business Assistant
                   </h3>
                   <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
-                    {isListening ? 'Listening...' : 'Phase 5'}
+                    {isListening ? 'Listening...' : 'Phase 6A'}
                   </span>
                 </div>
                 <p className="text-[11px] text-[#7C746F]">
@@ -520,6 +657,77 @@ export function AIBusinessAssistant() {
               <X className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Phase 6A: Compact Smart Alert Banner (max 2 active alerts) */}
+          {topAlerts.length > 0 && (
+            <div className="px-3.5 py-2 bg-[#FBF9F5] border-b border-[#EBE3D7] space-y-2 shrink-0 max-h-[160px] overflow-y-auto">
+              {topAlerts.map((alert) => {
+                const isCritical = alert.severity === 'critical';
+                const isWarning = alert.severity === 'warning';
+
+                const bannerStyle = isCritical
+                  ? 'bg-[#FDF2F0] border-[#F5C2B8] text-[#874937]'
+                  : isWarning
+                  ? 'bg-[#FFFBEB] border-[#FDE68A] text-[#92400E]'
+                  : 'bg-[#F0FDF4] border-[#BBF7D0] text-[#166534]';
+
+                const badgeStyle = isCritical
+                  ? 'bg-[#F8ECE6] text-[#BF745F] border-[#F0D7CD]'
+                  : isWarning
+                  ? 'bg-[#FEF3C7] text-[#D97706] border-[#FCD34D]'
+                  : 'bg-[#DCFCE7] text-[#15803D] border-[#86EFAC]';
+
+                const canAct = hasActionHandler(alert);
+
+                return (
+                  <div
+                    key={alert.id}
+                    className={`p-2.5 rounded-2xl border flex items-start justify-between gap-2 shadow-xs transition ${bannerStyle}`}
+                  >
+                    <div className="flex-1 min-w-0 pr-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${badgeStyle}`}
+                        >
+                          {alert.severity}
+                        </span>
+                        <span className="font-semibold text-xs leading-tight">
+                          {alert.title}
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-snug mt-1 opacity-90 line-clamp-2">
+                        {alert.message}
+                      </p>
+                      {canAct && (
+                        <div className="mt-2">
+                          <button
+                            type="button"
+                            onClick={() => handleAlertAction(alert)}
+                            className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition touch-press ${
+                              isCritical
+                                ? 'bg-white text-[#874937] border-[#F5C2B8] hover:bg-[#FDF2F0]'
+                                : 'bg-white text-[#92400E] border-[#FDE68A] hover:bg-[#FEF3C7]'
+                            }`}
+                          >
+                            {alert.actionLabel} →
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDismissAlert(alert.id)}
+                      className="p-1 rounded-full text-current opacity-60 hover:opacity-100 transition shrink-0"
+                      aria-label={`Dismiss alert ${alert.title}`}
+                      title="Dismiss alert"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Chat Messages Area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#FCFAF7]">
@@ -807,7 +1015,7 @@ export function AIBusinessAssistant() {
           {/* Footer note */}
           <div className="px-4 py-1.5 bg-[#FAF7F2] border-t border-[#EBE3D7] flex items-center justify-center gap-1 text-[10px] text-[#7C746F]">
             <Info className="w-3 h-3 text-[#A09891]" />
-            <span>Business Intelligence & Voice • Phase 5</span>
+            <span>Business Intelligence & Voice • Phase 6A</span>
           </div>
         </div>
       )}
