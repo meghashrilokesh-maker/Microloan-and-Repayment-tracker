@@ -1,11 +1,16 @@
 /**
- * Business Assistant Knowledge Engine (Phase 4B: Business Intelligence & Smart Suggestions)
+ * Business Assistant Knowledge Engine (Phase 5: Advanced Business Intelligence & Category Analysis)
  *
  * Modular, rule-based reasoning engine that analyzes live AppContext financial data
  * (sales, expenses, loans, repayments, profile) to provide instant, factual business intelligence.
  *
- * Answers are strictly grounded in user's real recorded data, with factual week-over-week comparisons,
- * category breakdowns, net cash flow tracking, and data-driven suggestions.
+ * Phase 5 Capabilities:
+ * - Category-specific sales questions (e.g. "How much did I earn from vegetables this month?")
+ * - Category-specific expense questions (e.g. "How much did I spend on transport?")
+ * - Detailed loan questions (distinguishing borrowed, repaid, remaining, and next due date)
+ * - Month-over-month comparisons (sales, expenses, net cash flow)
+ * - Flexible natural language variations
+ * - Grounded strictly in real app data without guessing or double-counting.
  */
 
 /**
@@ -31,9 +36,9 @@ export function getTodayDateString() {
 
 /**
  * Helper to get date ranges (YYYY-MM-DD) for time periods in local time.
- * Supports: today, yesterday, this_week, last_week, this_month.
+ * Supports: today, yesterday, this_week, last_week, this_month, last_month, all_time.
  */
-export function getDateRangeForPeriod(period = 'this_week') {
+export function getDateRangeForPeriod(period = 'this_month') {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
@@ -79,18 +84,29 @@ export function getDateRangeForPeriod(period = 'this_week') {
     return { startDate: formatDate(firstDay), endDate: formatDate(lastDay), label: 'this month' };
   }
 
-  return getDateRangeForPeriod('this_week');
+  if (period === 'last_month') {
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    return { startDate: formatDate(firstDay), endDate: formatDate(lastDay), label: 'last month' };
+  }
+
+  if (period === 'all_time') {
+    return { startDate: '1970-01-01', endDate: '2099-12-31', label: 'overall' };
+  }
+
+  return getDateRangeForPeriod('this_month');
 }
 
 /**
- * Detects time period from user query string.
+ * Detects time period from user query string. Returns null if no period was mentioned.
  */
-export function detectPeriod(query, defaultPeriod = 'this_week') {
+export function detectPeriod(query, defaultPeriod = null) {
   const clean = (query || '').toLowerCase();
   if (clean.includes('yesterday')) return 'yesterday';
   if (clean.includes('today')) return 'today';
   if (clean.includes('last week') || clean.includes('previous week')) return 'last_week';
   if (clean.includes('this week') || clean.includes('current week') || clean.includes('weekly') || clean.includes('my week')) return 'this_week';
+  if (clean.includes('last month') || clean.includes('previous month')) return 'last_month';
   if (clean.includes('this month') || clean.includes('current month') || clean.includes('monthly')) return 'this_month';
   return defaultPeriod;
 }
@@ -130,15 +146,90 @@ export function getRepaymentsInDateRange(loans = [], startDate, endDate) {
 }
 
 /**
- * Identify intent from user input string.
- * Order of checks ensures specific composite intents (like 'comparison' or 'biggest expense')
- * are captured before generic keywords ('sales' or 'expenses').
+ * Identifies specific sales category from query keywords.
+ */
+export function detectSaleCategory(query) {
+  if (!query || typeof query !== 'string') return null;
+  const clean = query.toLowerCase();
+
+  if (/\b(vegetable|vegetables|veggie|veggies|sabzi|subzi|tomato|tomatoes|potato|potatoes|onion|onions)\b/i.test(clean)) {
+    return 'Vegetables';
+  }
+  if (/\b(fruit|fruits|apple|apples|banana|bananas|mango|mangoes|orange|oranges|papaya)\b/i.test(clean)) {
+    return 'Fruits';
+  }
+  if (/\b(street food|chaat|chat|dosa|idli|samosa|samosas|panipuri|pani puri|snacks|fast food)\b/i.test(clean)) {
+    return 'Street Food';
+  }
+  if (/\b(grocery|groceries|kirana|provisions?|rice|dal|oil|atta|flour|spices|sugar|milk)\b/i.test(clean)) {
+    return 'Grocery';
+  }
+  if (/\b(cloth|cloths|clothes|clothing|garment|garments|saree|sarees|shirt|shirts|pants)\b/i.test(clean)) {
+    return 'Clothing';
+  }
+  if (/\b(food)\b/i.test(clean) && !clean.includes('food & tea') && !clean.includes('food and tea')) {
+    return 'Street Food';
+  }
+  return null;
+}
+
+/**
+ * Identifies specific expense category from query keywords.
+ */
+export function detectExpenseCategory(query) {
+  if (!query || typeof query !== 'string') return null;
+  const clean = query.toLowerCase();
+
+  if (/\b(transport|transportation|auto|tempo|cargo|bus|petrol|diesel|fuel|fare|cab|taxi)\b/i.test(clean)) {
+    return 'Transport';
+  }
+  if (/\b(shop rent|stall rent|room rent|store rent|rent)\b/i.test(clean)) {
+    return 'Shop Rent';
+  }
+  if (/\b(electric|electricity|bills?|power|current|battery|recharge|light bill|water bill)\b/i.test(clean)) {
+    return 'Electricity / Bills';
+  }
+  if (/\b(tea|chai|coffee|bun|biscuits?|food & tea|food and tea)\b/i.test(clean)) {
+    return 'Food & Tea';
+  }
+  if (/\b(stock|purchases?|wholesale|inventory|raw materials?|goods)\b/i.test(clean)) {
+    return 'Stock / Purchases';
+  }
+  return null;
+}
+
+/**
+ * Identify intent from user input string (Phase 5).
+ * Order of checks ensures specific composite intents (like category sales or monthly comparison)
+ * are captured before generic keywords.
  */
 export function detectIntent(query) {
   if (!query || typeof query !== 'string') return 'UNKNOWN';
   const clean = query.trim().toLowerCase();
 
-  // 1. Week-over-week Comparison Intent (Part 7)
+  // 1. Month-over-month Comparison Intent (Phase 5 D)
+  if (
+    clean.includes('compare this month') ||
+    clean.includes('compare to last month') ||
+    clean.includes('compare with last month') ||
+    clean.includes('compared with last month') ||
+    clean.includes('compared to last month') ||
+    clean.includes('did my sales increase this month') ||
+    clean.includes('did sales increase this month') ||
+    clean.includes('did my expenses increase this month') ||
+    clean.includes('did expenses increase this month') ||
+    clean.includes('monthly comparison') ||
+    clean.includes('comparison with last month') ||
+    clean.includes('sales increase this month') ||
+    clean.includes('expenses increase this month') ||
+    (clean.includes('compare') && clean.includes('month')) ||
+    clean.includes('versus last month') ||
+    clean.includes('vs last month')
+  ) {
+    return 'MONTHLY_COMPARISON';
+  }
+
+  // 2. Week-over-week Comparison Intent (Phase 4B Part 7)
   if (
     clean.includes('compare this week') ||
     clean.includes('compare to last week') ||
@@ -154,7 +245,120 @@ export function detectIntent(query) {
     return 'WEEKLY_COMPARISON';
   }
 
-  // 2. Biggest Expense Intent (Part 3)
+  // 3. Category-specific Sales Intent (Phase 5 A)
+  // e.g. "How much did I earn from vegetables this month?", "How much did I sell in fruits this week?", "What are my sales for vegetables?"
+  const saleCat = detectSaleCategory(clean);
+  const isSaleQuery =
+    saleCat &&
+    (clean.includes('earn') ||
+      clean.includes('selling') ||
+      clean.includes('sold') ||
+      clean.includes('sale') ||
+      clean.includes('sales') ||
+      clean.includes('make') ||
+      clean.includes('made') ||
+      clean.includes('sell') ||
+      clean.includes('revenue') ||
+      clean.includes('how much'));
+
+  if (isSaleQuery) {
+    return 'CATEGORY_SALES';
+  }
+
+  // 4. Category-specific Expense Intent (Phase 5 B)
+  // e.g. "How much did I spend on transport?", "What did I spend on rent?", "How much did electricity cost me this month?"
+  const expCat = detectExpenseCategory(clean);
+  const isExpQuery =
+    expCat &&
+    (clean.includes('spend') ||
+      clean.includes('spent') ||
+      clean.includes('cost') ||
+      clean.includes('costs') ||
+      clean.includes('paid') ||
+      clean.includes('pay') ||
+      clean.includes('expense') ||
+      clean.includes('expenses') ||
+      clean.includes('how much') ||
+      clean.includes('what did') ||
+      clean.includes('what was'));
+
+  if (isExpQuery) {
+    return 'CATEGORY_EXPENSES';
+  }
+
+  // 5. Loan Repayment Progress Intent (Phase 5 C)
+  // e.g. "How much have I repaid?", "How much repayment have I made?", "Total repaid"
+  if (
+    clean.includes('how much have i repaid') ||
+    clean.includes('how much i have repaid') ||
+    clean.includes('how much i repaid') ||
+    clean.includes('how much did i repay') ||
+    clean.includes('how much repaid') ||
+    clean.includes('repayment progress') ||
+    clean.includes('total repaid') ||
+    clean.includes('how much have we repaid') ||
+    clean.includes('how much loan have i repaid') ||
+    clean.includes('how much loan did i repay') ||
+    clean.includes('how much repayment') ||
+    (clean.includes('how much') && clean.includes('repaid')) ||
+    (clean.includes('how much') && clean.includes('repay'))
+  ) {
+    return 'LOAN_REPAID';
+  }
+
+  // 6. Next Loan Due / Next Repayment Intent (Phase 5 C)
+  // e.g. "Which loan is due next?", "What is my next repayment?", "How much is my repayment?"
+  if (
+    clean.includes('which loan') ||
+    clean.includes('due next') ||
+    clean.includes('next loan') ||
+    clean.includes('next payment') ||
+    clean.includes('next repayment') ||
+    clean.includes('how much is my repayment') ||
+    clean.includes('what is my repayment') ||
+    clean.includes('next instalment') ||
+    clean.includes('next installment') ||
+    clean.includes('when is my loan') ||
+    clean.includes('when is my next') ||
+    clean.includes('loan payment due') ||
+    clean.includes('loan due date') ||
+    clean.includes('next due') ||
+    clean.includes('upcoming repayment') ||
+    clean.includes('upcoming loan')
+  ) {
+    return 'NEXT_LOAN';
+  }
+
+  // 7. Loans Overview / Total Debt Intent (Phase 5 C)
+  // e.g. "How much do I owe?", "How much loan do I have left?", "Tell me about my active loans.", "How much do I still owe?"
+  if (
+    clean.includes('how much do i owe') ||
+    clean.includes('how much i owe') ||
+    clean.includes('how much do i still owe') ||
+    clean.includes('how much loan do i have left') ||
+    clean.includes('how much loan is left') ||
+    clean.includes('how much loan do i have') ||
+    clean.includes('how much loan') ||
+    clean.includes('what do i owe') ||
+    clean.includes('do i owe') ||
+    clean.includes('still owe') ||
+    clean.includes('remaining balance') ||
+    clean.includes('tell me about my active loans') ||
+    clean.includes('tell me about my loans') ||
+    clean.includes('my active loans') ||
+    clean.includes('show my loans') ||
+    clean.includes('all loans') ||
+    clean.includes('loan remaining') ||
+    clean.includes('total loan') ||
+    clean.includes('total debt') ||
+    clean.includes('remaining loan') ||
+    clean.includes('show loans') ||
+    clean.includes('loan status')
+  ) {
+    return 'LOANS_OVERVIEW';
+  }
+
+  // 8. Biggest Expense Intent (Phase 4B Part 3 / Phase 5 E)
   if (
     clean.includes('biggest expense') ||
     clean.includes('largest expense') ||
@@ -168,7 +372,7 @@ export function detectIntent(query) {
     return 'BIGGEST_EXPENSE';
   }
 
-  // 3. Sales By Category / Best Seller Intent (Part 4)
+  // 9. Sales By Category / Best Seller Intent (Phase 4B Part 4)
   if (
     clean.includes('what am i selling the most') ||
     clean.includes('what do i sell the most') ||
@@ -185,7 +389,7 @@ export function detectIntent(query) {
     return 'BEST_SELLER';
   }
 
-  // 4. Expense Breakdown Intent (Part 5)
+  // 10. Expense Breakdown Intent (Phase 4B Part 5)
   if (
     clean.includes('expense breakdown') ||
     clean.includes('break down my expenses') ||
@@ -199,7 +403,7 @@ export function detectIntent(query) {
     return 'EXPENSE_BREAKDOWN';
   }
 
-  // 5. Business Summary / How is my business doing (Part 1)
+  // 11. Business Summary / How is my business doing (Phase 4B Part 1)
   if (
     clean.includes('how is my business doing') ||
     clean.includes('how is business doing') ||
@@ -212,12 +416,13 @@ export function detectIntent(query) {
     clean.includes('how is my week') ||
     clean.includes('summary of this week') ||
     clean.includes('overall summary') ||
-    clean.includes('monthly summary')
+    clean.includes('monthly summary') ||
+    clean.includes('what are my sales looking like')
   ) {
     return 'BUSINESS_SUMMARY';
   }
 
-  // 6. Net Cash Flow / Balance Intent (Part 6)
+  // 12. Net Cash Flow / Balance Intent (Phase 4B Part 6)
   if (
     clean.includes('net cash flow') ||
     clean.includes('cash flow') ||
@@ -234,38 +439,7 @@ export function detectIntent(query) {
     return 'CASH_FLOW';
   }
 
-  // 7. Next Loan Due Intent (Part 10)
-  if (
-    clean.includes('which loan') ||
-    clean.includes('due next') ||
-    clean.includes('next loan') ||
-    clean.includes('next payment') ||
-    clean.includes('next instalment') ||
-    clean.includes('next installment') ||
-    clean.includes('when is my loan') ||
-    clean.includes('when is my next') ||
-    clean.includes('loan payment due')
-  ) {
-    return 'NEXT_LOAN';
-  }
-
-  // 8. Loans Overview / Total Debt Intent (Part 10)
-  if (
-    clean.includes('how much do i owe') ||
-    clean.includes('how much i owe') ||
-    clean.includes('show my loans') ||
-    clean.includes('all loans') ||
-    clean.includes('loan remaining') ||
-    clean.includes('total loan') ||
-    clean.includes('total debt') ||
-    clean.includes('remaining loan') ||
-    clean.includes('my active loans') ||
-    clean.includes('show loans')
-  ) {
-    return 'LOANS_OVERVIEW';
-  }
-
-  // 9. Profit & Business Improvement Ideas Intent (Part 8 & 9)
+  // 13. Profit & Business Improvement Ideas Intent (Phase 4B Part 8 & 9)
   if (
     clean.includes('suggestions to improve') ||
     clean.includes('improve my business') ||
@@ -287,11 +461,17 @@ export function detectIntent(query) {
     return 'PROFIT_IDEAS';
   }
 
-  // 10. Sales Queries (Part 2 & Part 11)
+  // 14. General Sales Queries (Phase 2A / Phase 4B / Phase 5 E)
+  // e.g. "How much did I sell this week?", "How much did I make?", "Show my sales"
   if (
     clean.includes('how much did i sell') ||
+    clean.includes('how much did i make') ||
+    clean.includes('how much i made') ||
+    clean.includes('how were my sales') ||
+    clean.includes('how are my sales') ||
     clean.includes('sales this week') ||
     clean.includes('sales this month') ||
+    clean.includes('sales last month') ||
     clean.includes('sales today') ||
     clean.includes('today sales') ||
     clean.includes('sold today') ||
@@ -305,12 +485,16 @@ export function detectIntent(query) {
     return 'SALES';
   }
 
-  // 11. Expense Queries (Part 2 & Part 11)
+  // 15. General Expense Queries (Phase 2A / Phase 4B / Phase 5 E)
+  // e.g. "How much did I spend this week?", "How are my expenses this month?", "Show my expenses"
   if (
-    clean.includes('show my expenses') ||
     clean.includes('how much did i spend') ||
+    clean.includes('how were my expenses') ||
+    clean.includes('how are my expenses') ||
+    clean.includes('show my expenses') ||
     clean.includes('expenses this week') ||
     clean.includes('expenses this month') ||
+    clean.includes('expenses last month') ||
     clean.includes('expenses today') ||
     clean.includes('today expenses') ||
     clean.includes('spent today') ||
@@ -322,7 +506,7 @@ export function detectIntent(query) {
     return 'EXPENSES';
   }
 
-  // 12. Conversational Greeting Intent
+  // 16. Conversational Greeting Intent
   if (
     clean === 'hi' ||
     clean === 'hello' ||
@@ -342,8 +526,236 @@ export function detectIntent(query) {
 }
 
 /**
- * 1. Business Summary (Part 1)
- * Calculates total sales, expenses, repayments, and net cash flow for specified period.
+ * A. Category-Specific Sales Answer (Phase 5 A)
+ * Answers questions like "How much did I earn from vegetables this month?"
+ */
+export function generateCategorySalesAnswer(context, query) {
+  const category = detectSaleCategory(query) || 'Vegetables';
+  const detectedPeriod = detectPeriod(query, null);
+
+  let period = detectedPeriod || 'this_month';
+  let { startDate, endDate, label } = getDateRangeForPeriod(period);
+
+  let filtered = filterByDateRange(context.sales || [], startDate, endDate);
+
+  // If no explicit period was mentioned and current month is empty, fall back to all recorded history
+  if (!detectedPeriod && filtered.length === 0) {
+    filtered = context.sales || [];
+    label = 'overall';
+  }
+
+  const catKey = category.toLowerCase();
+  const catSales = filtered.filter((s) => (s.category || '').toLowerCase().includes(catKey));
+  const catTotal = catSales.reduce((sum, s) => sum + Number(s.amount || 0), 0);
+  const overallSalesTotal = filtered.reduce((sum, s) => sum + Number(s.amount || 0), 0);
+
+  if (catSales.length === 0 || catTotal === 0) {
+    return (
+      `You haven't recorded any sales in ${category} for ${label} yet (₹0).\n\n` +
+      `💡 Tip: When recording sales, select '${category}' to keep track of this category's earnings.`
+    );
+  }
+
+  const shareText =
+    overallSalesTotal > 0
+      ? ` (${Math.round((catTotal / overallSalesTotal) * 100)}% of your recorded sales)`
+      : '';
+
+  return (
+    `Your sales for ${category} ${label} total ₹${formatCurrency(catTotal)} across ${catSales.length} recorded transaction${catSales.length === 1 ? '' : 's'}${shareText}.`
+  );
+}
+
+/**
+ * B. Category-Specific Expense Answer (Phase 5 B)
+ * Answers questions like "How much did I spend on transport?"
+ */
+export function generateCategoryExpensesAnswer(context, query) {
+  const category = detectExpenseCategory(query) || 'Stock / Purchases';
+  const detectedPeriod = detectPeriod(query, null);
+
+  let period = detectedPeriod || 'this_month';
+  let { startDate, endDate, label } = getDateRangeForPeriod(period);
+
+  let filtered = filterByDateRange(context.expenses || [], startDate, endDate);
+
+  // If no explicit period was mentioned and current month is empty, fall back to all recorded history
+  if (!detectedPeriod && filtered.length === 0) {
+    filtered = context.expenses || [];
+    label = 'overall';
+  }
+
+  const catKey = category.toLowerCase().split('/')[0].trim();
+  const catExpenses = filtered.filter((e) => (e.category || '').toLowerCase().includes(catKey));
+  const catTotal = catExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const overallExpTotal = filtered.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  if (catExpenses.length === 0 || catTotal === 0) {
+    return (
+      `You haven't recorded any expenses for ${category} for ${label} yet (₹0).\n\n` +
+      `💡 Tip: Tap 'Add Expense' anytime to record receipts under '${category}'.`
+    );
+  }
+
+  const shareText =
+    overallExpTotal > 0
+      ? ` (${Math.round((catTotal / overallExpTotal) * 100)}% of your recorded expenses)`
+      : '';
+
+  return (
+    `You spent ₹${formatCurrency(catTotal)} on ${category} ${label} across ${catExpenses.length} recorded entry${catExpenses.length === 1 ? '' : 'ies'}${shareText}.`
+  );
+}
+
+/**
+ * C. Loan Repaid Answer (Phase 5 C)
+ * Answers questions like "How much have I repaid?"
+ */
+export function generateLoanRepaidAnswer(context) {
+  const loans = context.loans || [];
+
+  if (loans.length === 0) {
+    return (
+      "You currently have no recorded microloans in the tracker.\n\n" +
+      "💡 Tip: You can add an active microloan from the Loans screen to track balances and repayment instalments."
+    );
+  }
+
+  const totalOriginal = loans.reduce((sum, l) => sum + Number(l.originalAmount || 0), 0);
+  const totalRepaid = loans.reduce((sum, l) => sum + Number(l.totalRepaid || 0), 0);
+  const totalRemaining = loans.reduce((sum, l) => sum + Number(l.remainingAmount || 0), 0);
+  const percentCleared = totalOriginal > 0 ? Math.round((totalRepaid / totalOriginal) * 100) : 0;
+
+  const perLoanLines = loans
+    .map((l) => {
+      const repaid = formatCurrency(l.totalRepaid || 0);
+      const remaining = formatCurrency(l.remainingAmount || 0);
+      return `• ${l.name}: ₹${repaid} repaid (₹${remaining} remaining)`;
+    })
+    .join('\n');
+
+  return (
+    `You have repaid a total of ₹${formatCurrency(totalRepaid)} so far across your loans (out of ₹${formatCurrency(totalOriginal)} borrowed, ${percentCleared}% cleared).\n\n` +
+    `Your remaining total loan balance is ₹${formatCurrency(totalRemaining)}.\n\n` +
+    `Repayment by loan:\n${perLoanLines}`
+  );
+}
+
+/**
+ * D. Month-over-Month Comparison (Phase 5 D)
+ * Compares current month with previous calendar month factually.
+ */
+export function generateMonthlyComparisonAnswer(context, query) {
+  const thisMonthRange = getDateRangeForPeriod('this_month');
+  const lastMonthRange = getDateRangeForPeriod('last_month');
+
+  const thisSales = filterByDateRange(context.sales || [], thisMonthRange.startDate, thisMonthRange.endDate);
+  const thisExpenses = filterByDateRange(context.expenses || [], thisMonthRange.startDate, thisMonthRange.endDate);
+  const thisRepayments = getRepaymentsInDateRange(context.loans || [], thisMonthRange.startDate, thisMonthRange.endDate);
+
+  const lastSales = filterByDateRange(context.sales || [], lastMonthRange.startDate, lastMonthRange.endDate);
+  const lastExpenses = filterByDateRange(context.expenses || [], lastMonthRange.startDate, lastMonthRange.endDate);
+  const lastRepayments = getRepaymentsInDateRange(context.loans || [], lastMonthRange.startDate, lastMonthRange.endDate);
+
+  const thisSalesTotal = thisSales.reduce((sum, s) => sum + Number(s.amount || 0), 0);
+  const thisExpTotal = thisExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const thisRepayTotal = thisRepayments.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const thisNet = thisSalesTotal - thisExpTotal - thisRepayTotal;
+
+  const lastSalesTotal = lastSales.reduce((sum, s) => sum + Number(s.amount || 0), 0);
+  const lastExpTotal = lastExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const lastRepayTotal = lastRepayments.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const lastNet = lastSalesTotal - lastExpTotal - lastRepayTotal;
+
+  const hasThisMonth = thisSales.length > 0 || thisExpenses.length > 0;
+  const hasLastMonth = lastSales.length > 0 || lastExpenses.length > 0;
+
+  if (!hasThisMonth && !hasLastMonth) {
+    return "I don't have enough recorded data from last month and this month to make a comparison yet.";
+  }
+
+  if (!hasLastMonth) {
+    return (
+      `I don't have enough recorded data from last month to make a comparison yet.\n\n` +
+      `This month so far:\n` +
+      `• Sales: ₹${formatCurrency(thisSalesTotal)}\n` +
+      `• Expenses: ₹${formatCurrency(thisExpTotal)}\n` +
+      `• Net Cash Flow: ₹${formatCurrency(thisNet)}`
+    );
+  }
+
+  const salesDiff = thisSalesTotal - lastSalesTotal;
+  const expDiff = thisExpTotal - lastExpTotal;
+
+  const clean = (query || '').toLowerCase();
+  const isSalesSpecific = clean.includes('sales');
+  const isExpSpecific = clean.includes('expenses') || clean.includes('expense');
+
+  // Specialized response if user asked specifically about sales
+  if (isSalesSpecific && !isExpSpecific) {
+    const compText =
+      salesDiff > 0
+        ? `Sales were ₹${formatCurrency(salesDiff)} higher this month compared to last month.`
+        : salesDiff < 0
+        ? `Sales were ₹${formatCurrency(Math.abs(salesDiff))} lower this month compared to last month.`
+        : `Sales were identical to last month.`;
+
+    return (
+      `This Month Sales: ₹${formatCurrency(thisSalesTotal)}\n` +
+      `Last Month Sales: ₹${formatCurrency(lastSalesTotal)}\n\n` +
+      `${compText}`
+    );
+  }
+
+  // Specialized response if user asked specifically about expenses
+  if (isExpSpecific && !isSalesSpecific) {
+    const compText =
+      expDiff > 0
+        ? `Expenses were ₹${formatCurrency(expDiff)} higher this month compared to last month.`
+        : expDiff < 0
+        ? `Expenses were ₹${formatCurrency(Math.abs(expDiff))} lower this month compared to last month.`
+        : `Expenses were identical to last month.`;
+
+    return (
+      `This Month Expenses: ₹${formatCurrency(thisExpTotal)}\n` +
+      `Last Month Expenses: ₹${formatCurrency(lastExpTotal)}\n\n` +
+      `${compText}`
+    );
+  }
+
+  // Full month-over-month comparison
+  const salesCompText =
+    salesDiff > 0
+      ? `Sales were ₹${formatCurrency(salesDiff)} higher this month.`
+      : salesDiff < 0
+      ? `Sales were ₹${formatCurrency(Math.abs(salesDiff))} lower this month.`
+      : `Sales were identical to last month.`;
+
+  const expCompText =
+    expDiff > 0
+      ? `Expenses were ₹${formatCurrency(expDiff)} higher this month.`
+      : expDiff < 0
+      ? `Expenses were ₹${formatCurrency(Math.abs(expDiff))} lower this month.`
+      : `Expenses were identical to last month.`;
+
+  return (
+    `Here is your month-over-month comparison:\n\n` +
+    `This Month:\n` +
+    `• Sales: ₹${formatCurrency(thisSalesTotal)}\n` +
+    `• Expenses: ₹${formatCurrency(thisExpTotal)}\n` +
+    `• Net Cash Flow: ₹${formatCurrency(thisNet)}\n\n` +
+    `Last Month:\n` +
+    `• Sales: ₹${formatCurrency(lastSalesTotal)}\n` +
+    `• Expenses: ₹${formatCurrency(lastExpTotal)}\n` +
+    `• Net Cash Flow: ₹${formatCurrency(lastNet)}\n\n` +
+    `Summary:\n` +
+    `• ${salesCompText}\n` +
+    `• ${expCompText}`
+  );
+}
+
+/**
+ * 1. Business Summary (Phase 4B Part 1)
  */
 export function generateBusinessSummary(context, query) {
   const period = detectPeriod(query, 'this_week');
@@ -358,7 +770,6 @@ export function generateBusinessSummary(context, query) {
   const repaymentsTotal = filteredRepayments.reduce((acc, r) => acc + Number(r.amount || 0), 0);
   const netCashFlow = salesTotal - expensesTotal - repaymentsTotal;
 
-  // Empty data handling (Part 12)
   if (filteredSales.length === 0 && filteredExpenses.length === 0 && filteredRepayments.length === 0) {
     return (
       `You don't have any recorded transactions for ${label} yet.\n\n` +
@@ -380,8 +791,7 @@ export function generateBusinessSummary(context, query) {
 }
 
 /**
- * 2. Sales Query (Part 2 & Part 11)
- * Supports today, yesterday, this week, this month.
+ * 2. Sales Query (Supports today, yesterday, this week, last week, this month, last month)
  */
 export function generateSalesAnswer(context, query) {
   const period = detectPeriod(query, 'today');
@@ -397,7 +807,6 @@ export function generateSalesAnswer(context, query) {
     );
   }
 
-  // Category breakdown
   const categoryCounts = {};
   salesList.forEach((s) => {
     const cat = s.category || 'General Sales';
@@ -418,8 +827,7 @@ export function generateSalesAnswer(context, query) {
 }
 
 /**
- * 3. Expense Query (Part 2 & Part 11)
- * Supports today, yesterday, this week, this month.
+ * 3. Expense Query (Supports today, yesterday, this week, last week, this month, last month)
  */
 export function generateExpensesAnswer(context, query) {
   const period = detectPeriod(query, 'today');
@@ -435,7 +843,6 @@ export function generateExpensesAnswer(context, query) {
     );
   }
 
-  // Category breakdown
   const categoryCounts = {};
   expensesList.forEach((e) => {
     const cat = e.category || 'Stock / Purchases';
@@ -456,8 +863,7 @@ export function generateExpensesAnswer(context, query) {
 }
 
 /**
- * 4. Biggest Expense (Part 3)
- * Analyzes expense transactions by category and returns the category and amount.
+ * 4. Biggest Expense (Phase 4B Part 3)
  */
 export function generateBiggestExpenseAnswer(context, query) {
   const period = detectPeriod(query, 'this_month');
@@ -466,7 +872,6 @@ export function generateBiggestExpenseAnswer(context, query) {
   let filteredExpenses = filterByDateRange(context.expenses || [], startDate, endDate);
   let effectiveLabel = label;
 
-  // Fallback to all recorded expenses if specified period has none
   if (filteredExpenses.length === 0) {
     filteredExpenses = context.expenses || [];
     effectiveLabel = 'in your recorded history';
@@ -502,8 +907,7 @@ export function generateBiggestExpenseAnswer(context, query) {
 }
 
 /**
- * 5. Best-Selling Category (Part 4)
- * Groups recorded sales by category and returns the highest sales amount.
+ * 5. Best-Selling Category (Phase 4B Part 4)
  */
 export function generateBestSellerAnswer(context, query) {
   const period = detectPeriod(query, 'this_month');
@@ -541,8 +945,7 @@ export function generateBestSellerAnswer(context, query) {
 }
 
 /**
- * 6. Expense Breakdown (Part 5)
- * Groups expenses by category and displays major categories.
+ * 6. Expense Breakdown (Phase 4B Part 5)
  */
 export function generateExpenseBreakdownAnswer(context, query) {
   const period = detectPeriod(query, 'this_month');
@@ -581,8 +984,7 @@ export function generateExpenseBreakdownAnswer(context, query) {
 }
 
 /**
- * 7. Net Cash Flow / Balance (Part 6)
- * Calculates sales - expenses - repayments and clarifies accounting profit distinction when appropriate.
+ * 7. Net Cash Flow / Balance (Phase 4B Part 6)
  */
 export function generateCashFlowAnswer(context, query) {
   const period = detectPeriod(query, 'this_week');
@@ -613,8 +1015,7 @@ export function generateCashFlowAnswer(context, query) {
 }
 
 /**
- * 8. Week-over-Week Comparison (Part 7)
- * Factual comparison of sales, expenses, and net cash flow without judgmental terms.
+ * 8. Week-over-Week Comparison (Phase 4B Part 7)
  */
 export function generateWeeklyComparisonAnswer(context) {
   const thisWeekRange = getDateRangeForPeriod('this_week');
@@ -638,7 +1039,6 @@ export function generateWeeklyComparisonAnswer(context) {
   const lastRepayTotal = lastRepayments.reduce((sum, r) => sum + Number(r.amount || 0), 0);
   const lastNet = lastSalesTotal - lastExpTotal - lastRepayTotal;
 
-  // Empty data handling (Part 12)
   const hasThisWeek = thisSales.length > 0 || thisExpenses.length > 0;
   const hasLastWeek = lastSales.length > 0 || lastExpenses.length > 0;
 
@@ -686,16 +1086,13 @@ export function generateWeeklyComparisonAnswer(context) {
 }
 
 /**
- * 9. Smart Suggestions (Part 8 & Part 9)
- * Grounded in real profile details (business type, name) and actual transaction data.
- * Formulated as non-prescriptive, practical suggestions ("Consider...", "You could try...").
+ * 9. Smart Suggestions (Phase 4B Part 8 & 9)
  */
 export function generateSmartSuggestions(context) {
   const profile = context.profile || {};
   const businessType = profile.businessType || 'retail stall';
   const businessName = profile.businessName || 'your business';
 
-  // Analyze actual expenses
   const allExpenses = context.expenses || [];
   const categoryExpenseTotals = {};
   let totalExpenses = 0;
@@ -706,7 +1103,6 @@ export function generateSmartSuggestions(context) {
     totalExpenses += amt;
   });
 
-  // Analyze actual sales
   const allSales = context.sales || [];
   const categorySalesTotals = {};
   let totalSales = 0;
@@ -719,7 +1115,6 @@ export function generateSmartSuggestions(context) {
 
   const suggestions = [];
 
-  // Suggestion based on expense concentration
   const transportExpense = categoryExpenseTotals['Transport'] || 0;
   const stockExpense = categoryExpenseTotals['Stock / Purchases'] || 0;
 
@@ -739,7 +1134,6 @@ export function generateSmartSuggestions(context) {
     );
   }
 
-  // Suggestion based on sales concentration
   const sortedSales = Object.entries(categorySalesTotals).sort((a, b) => b[1] - a[1]);
   if (sortedSales.length > 0 && totalSales > 0) {
     const [topCat, topAmt] = sortedSales[0];
@@ -759,7 +1153,6 @@ export function generateSmartSuggestions(context) {
     );
   }
 
-  // Suggestion based on cash flow / loans
   const activeLoans = context.activeLoans || (context.loans || []).filter((l) => l && l.status !== 'Completed');
   if (activeLoans.length > 0) {
     suggestions.push(
@@ -778,7 +1171,7 @@ export function generateSmartSuggestions(context) {
 }
 
 /**
- * 10. Next Loan Due (Part 10)
+ * 10. Next Loan Due / Next Repayment (Phase 5 C)
  */
 export function generateNextLoanAnswer(context) {
   const nextLoan = context.nextRepaymentLoan;
@@ -801,7 +1194,7 @@ export function generateNextLoanAnswer(context) {
   return (
     `Your next upcoming repayment is for ${loanName} (${lenderName}):\n\n` +
     `• Due Date: ${dueDate}\n` +
-    `• Instalment Due: ₹${installment} (${frequency})\n` +
+    `• Next Instalment: ₹${installment} (${frequency})\n` +
     `• Remaining Loan Balance: ₹${remaining}\n` +
     `• Loan Status: ${status}\n\n` +
     `💡 You can open the Loans tab to log your repayment when paid.`
@@ -809,13 +1202,17 @@ export function generateNextLoanAnswer(context) {
 }
 
 /**
- * 11. Loans Overview / Total Debt (Part 10)
+ * 11. Loans Overview / Total Debt (Phase 5 C)
+ * Distinguishes original borrowing, total repaid, and remaining balance.
  */
 export function generateLoansOverviewAnswer(context) {
-  const activeLoans = context.activeLoans || (context.loans || []).filter((l) => l && l.status !== 'Completed');
-  const totalRemaining = Number(context.totalLoanRemaining || 0);
+  const loans = context.loans || [];
+  const activeLoans = context.activeLoans || loans.filter((l) => l && l.status !== 'Completed');
+  const totalRemaining = Number(context.totalLoanRemaining || activeLoans.reduce((sum, l) => sum + Number(l.remainingAmount || 0), 0));
+  const totalOriginal = Number(context.totalOriginalLoan || activeLoans.reduce((sum, l) => sum + Number(l.originalAmount || 0), 0));
+  const totalRepaid = Number(context.totalRepaidSoFar || activeLoans.reduce((sum, l) => sum + Number(l.totalRepaid || 0), 0));
 
-  if (activeLoans.length === 0 || totalRemaining === 0) {
+  if (loans.length === 0 || (activeLoans.length === 0 && totalRemaining === 0)) {
     return (
       "You currently have no outstanding loan balance (₹0 owed).\n\n" +
       "You have completed all scheduled loan repayments, or have not added any active loans."
@@ -826,13 +1223,18 @@ export function generateLoansOverviewAnswer(context) {
     .map((l) => {
       const remaining = formatCurrency(l.remainingAmount || 0);
       const original = formatCurrency(l.originalAmount || 0);
+      const repaid = formatCurrency(l.totalRepaid || 0);
       const nextDue = l.nextDueDate ? ` (Next due: ${l.nextDueDate})` : '';
-      return `• ${l.name}: ₹${remaining} remaining of ₹${original}${nextDue}`;
+      return `• ${l.name}: ₹${remaining} remaining of ₹${original} (₹${repaid} repaid)${nextDue}`;
     })
     .join('\n');
 
   return (
     `You have ${activeLoans.length} active loan${activeLoans.length === 1 ? '' : 's'} with a total remaining balance of ₹${formatCurrency(totalRemaining)}.\n\n` +
+    `Loan Summary:\n` +
+    `• Total Borrowed: ₹${formatCurrency(totalOriginal)}\n` +
+    `• Total Repaid: ₹${formatCurrency(totalRepaid)}\n` +
+    `• Total Remaining: ₹${formatCurrency(totalRemaining)}\n\n` +
     `Active Loan Details:\n${loanItems}`
   );
 }
@@ -848,11 +1250,11 @@ export function generateGreeting(context) {
   return (
     `Hello, ${name}! Welcome to your Business Assistant for ${shop}.\n\n` +
     `I can give you live updates on:\n` +
-    `• Weekly & monthly business summaries\n` +
-    `• Sales & expense breakdowns\n` +
-    `• Biggest expenses & best-selling categories\n` +
-    `• Net cash flow & week-over-week comparisons\n` +
-    `• Practical suggestions to improve operations\n\n` +
+    `• Category sales (e.g. vegetables, fruits)\n` +
+    `• Category expenses (e.g. transport, rent, stock)\n` +
+    `• Monthly & weekly comparisons\n` +
+    `• Loan repayment progress & upcoming due dates\n` +
+    `• Practical suggestions to improve profit\n\n` +
     `What would you like to check?`
   );
 }
@@ -864,19 +1266,19 @@ export function generateFallback() {
   return (
     `I can help with your sales, expenses, cash flow, loans, and business analysis.\n\n` +
     `You can try asking:\n` +
-    `• "How is my business doing this week?"\n` +
+    `• "How much did I earn from vegetables this month?"\n` +
+    `• "How much did I spend on transport?"\n` +
+    `• "Compare this month with last month"\n` +
+    `• "How much loan do I have left?"\n` +
+    `• "How much have I repaid?"\n` +
     `• "What was my biggest expense?"\n` +
-    `• "What am I selling the most?"\n` +
-    `• "Show my expense breakdown"\n` +
-    `• "Compare this week with last week"\n` +
-    `• "What is my net cash flow?"\n` +
     `• "Give me suggestions to improve my business"`
   );
 }
 
 /**
  * Main query processor: takes user text and AppContext snapshot,
- * detects intent, and produces the corresponding factual response (Phase 4B).
+ * detects intent, and produces the corresponding factual response (Phase 5).
  */
 export async function processBusinessQuery(query, context = {}) {
   const intent = detectIntent(query);
@@ -884,6 +1286,22 @@ export async function processBusinessQuery(query, context = {}) {
   let replyText = '';
 
   switch (intent) {
+    case 'CATEGORY_SALES':
+      replyText = generateCategorySalesAnswer(context, query);
+      break;
+
+    case 'CATEGORY_EXPENSES':
+      replyText = generateCategoryExpensesAnswer(context, query);
+      break;
+
+    case 'LOAN_REPAID':
+      replyText = generateLoanRepaidAnswer(context);
+      break;
+
+    case 'MONTHLY_COMPARISON':
+      replyText = generateMonthlyComparisonAnswer(context, query);
+      break;
+
     case 'WEEKLY_COMPARISON':
       replyText = generateWeeklyComparisonAnswer(context);
       break;

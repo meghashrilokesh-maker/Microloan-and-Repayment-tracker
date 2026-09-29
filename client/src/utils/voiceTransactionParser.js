@@ -392,9 +392,10 @@ function checkAmbiguity(clause) {
 
 /**
  * Main parser: Parses single or multiple transactions from spoken or typed input (Phase 4A).
+ * Supports options for source tracking: { source: 'text' | 'voice' } or direct string 'text' | 'voice'.
  * Returns structured draft array, clarification notes, or ambiguity warnings.
  */
-export function parseVoiceTransactions(transcript) {
+export function parseVoiceTransactions(transcript, options = {}) {
   if (!transcript || typeof transcript !== 'string' || !transcript.trim()) {
     return {
       success: false,
@@ -402,6 +403,9 @@ export function parseVoiceTransactions(transcript) {
       message: 'No transcript was provided. Please speak or type your sale or expense.',
     };
   }
+
+  const source = typeof options === 'string' ? options : (options?.source || 'voice');
+  const defaultNote = options?.note || (source === 'text' ? 'Text entry' : 'Voice entry');
 
   const rawClean = transcript.trim();
   const lowerText = rawClean.toLowerCase();
@@ -545,7 +549,8 @@ export function parseVoiceTransactions(transcript) {
       category,
       date,
       customerName,
-      note: 'Voice entry',
+      note: defaultNote,
+      source,
       ...(approximate ? { approximate: true } : {}),
     };
 
@@ -593,8 +598,8 @@ export function parseVoiceTransactions(transcript) {
 /**
  * Backward-compatible single-transaction parser wrapper (Phase 3B compatible).
  */
-export function parseVoiceTransaction(transcript) {
-  const result = parseVoiceTransactions(transcript);
+export function parseVoiceTransaction(transcript, options = {}) {
+  const result = parseVoiceTransactions(transcript, options);
   if (result.success && result.transactions && result.transactions.length > 0) {
     return {
       success: true,

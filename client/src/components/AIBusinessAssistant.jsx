@@ -28,10 +28,10 @@ import { parseVoiceTransactions, extractAmount } from '../utils/voiceTransaction
  * Default prompt suggestions for quick business questions.
  */
 const QUICK_SUGGESTIONS = [
-  'How is my business doing this week?',
-  'What was my biggest expense?',
-  'Compare this week with last week',
-  'Give me suggestions to improve my business',
+  'How much did I earn from vegetables this month?',
+  'How much loan do I still owe?',
+  'Compare this month with last month',
+  'Where am I spending the most?',
 ];
 
 const INITIAL_WELCOME = 'Hi! I can help you with your sales, expenses, loans and reports.';
@@ -164,7 +164,7 @@ export function AIBusinessAssistant() {
         category: draft.category,
         date: draft.date,
         customerName: draft.customerName || '',
-        note: draft.note || 'Voice entry',
+        note: draft.note || (draft.source === 'text' ? 'Text entry' : 'Voice entry'),
       },
       onSaved: (savedEntry) => {
         const typeLabel = draft.type === 'expense' ? 'Expense' : 'Sale';
@@ -236,7 +236,7 @@ export function AIBusinessAssistant() {
 
     if (!isExplicitBusinessQuestion) {
       // 2. Attempt to parse natural language transaction(s) (Phase 4A)
-      const parsed = parseVoiceTransactions(query);
+      const parsed = parseVoiceTransactions(query, { source: 'text' });
 
       if (parsed.success && parsed.transactions && parsed.transactions.length > 0) {
         setIsThinking(false);
@@ -369,7 +369,7 @@ export function AIBusinessAssistant() {
 
         if (!isExplicitBusinessQuestion) {
           // 2. Parse voice transcript into structured Transaction Drafts (Phase 4A)
-          const parsed = parseVoiceTransactions(transcript);
+          const parsed = parseVoiceTransactions(transcript, { source: 'voice' });
 
           if (parsed.success && parsed.transactions && parsed.transactions.length > 0) {
             const count = parsed.transactions.length;
@@ -502,7 +502,7 @@ export function AIBusinessAssistant() {
                     Business Assistant
                   </h3>
                   <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
-                    {isListening ? 'Listening...' : 'Phase 4B'}
+                    {isListening ? 'Listening...' : 'Phase 5'}
                   </span>
                 </div>
                 <p className="text-[11px] text-[#7C746F]">
@@ -807,7 +807,7 @@ export function AIBusinessAssistant() {
           {/* Footer note */}
           <div className="px-4 py-1.5 bg-[#FAF7F2] border-t border-[#EBE3D7] flex items-center justify-center gap-1 text-[10px] text-[#7C746F]">
             <Info className="w-3 h-3 text-[#A09891]" />
-            <span>Business Intelligence & Voice • Phase 4B</span>
+            <span>Business Intelligence & Voice • Phase 5</span>
           </div>
         </div>
       )}
