@@ -318,10 +318,29 @@ export function splitIntoClauses(transcript) {
 }
 
 /**
+ * Detects whether a string is purely an amount (plus optional currency or approximation words)
+ * without any transaction context (e.g. "10", "500", "₹1000", "200 rupees", "about 300", "around 500").
+ */
+export function isAmountOnly(text) {
+  if (!text || typeof text !== 'string') return false;
+  const stripped = text
+    .toLowerCase()
+    .replace(/[0-9.,₹\-?!]/g, ' ')
+    .replace(/\b(rs\.?|inr|rupees?|bucks?)\b/g, ' ')
+    .replace(/\b(about|around|approx\.?|approximately|nearly|almost|roughly)\b/g, ' ')
+    .replace(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|k|lakh|lakhs|lac|lacs|crore|crores)\b/g, ' ')
+    .replace(/\b(only|total|just)\b/g, ' ')
+    .trim();
+
+  return stripped.length === 0;
+}
+
+/**
  * Evaluates whether a clause is an ambiguous financial statement requiring user clarification.
  * Examples:
  * "I paid 500." -> Bare payment without purpose or recipient
  * "I made 2000." -> Bare made without purpose, category, or sale wording
+ * "10" / "500" / "₹1000" -> Bare amount without sale or expense context
  */
 function checkAmbiguity(clause) {
   const clean = (clause || '').toLowerCase().trim();
@@ -355,6 +374,16 @@ function checkAmbiguity(clause) {
     return {
       isAmbiguous: true,
       message: `Was the ${formatted} a sale or an expense? Please mention what it was for.`,
+    };
+  }
+
+  // 3. Amount-only input (e.g. "10", "500", "₹1000", "200 rupees", "about 300", "around 500")
+  if (isAmountOnly(clean)) {
+    const amt = extractAmount(clause);
+    const formatted = amt ? `₹${amt.toLocaleString('en-IN')}` : 'this amount';
+    return {
+      isAmbiguous: true,
+      message: `I have the amount ${formatted}, but I’m not sure whether this is a sale or an expense. Please tell me what it was for.`,
     };
   }
 
@@ -439,7 +468,7 @@ export function parseVoiceTransactions(transcript) {
     }
 
     // Determine type
-    let type = 'sale';
+    let type = null;
     if (hasExpenseSignal && !hasSaleSignal) {
       type = 'expense';
     } else if (hasSaleSignal && !hasExpenseSignal) {
@@ -452,18 +481,47 @@ export function parseVoiceTransactions(transcript) {
         type = 'sale';
       }
     } else {
-      // Neither signal explicit in this clause; infer from keywords
-      if (
+      // Neither action signal explicit in this clause; check for category keywords
+      const hasExpenseCategory =
         cleanClause.includes('transport') ||
         cleanClause.includes('auto') ||
+        cleanClause.includes('tempo') ||
+        cleanClause.includes('cargo') ||
         cleanClause.includes('rent') ||
         cleanClause.includes('bill') ||
         cleanClause.includes('electric') ||
-        cleanClause.includes('tea')
-      ) {
+        cleanClause.includes('tea') ||
+        cleanClause.includes('chai') ||
+        cleanClause.includes('coffee') ||
+        cleanClause.includes('stock');
+
+      const hasSaleCategory =
+        cleanClause.includes('vegetable') ||
+        cleanClause.includes('veggie') ||
+        cleanClause.includes('sabzi') ||
+        cleanClause.includes('fruit') ||
+        cleanClause.includes('chaat') ||
+        cleanClause.includes('street food') ||
+        cleanClause.includes('grocery') ||
+        cleanClause.includes('kirana') ||
+        cleanClause.includes('cloth') ||
+        cleanClause.includes('saree') ||
+        cleanClause.includes('shirt');
+
+      if (hasExpenseCategory && !hasSaleCategory) {
         type = 'expense';
-      } else {
+      } else if (hasSaleCategory && !hasExpenseCategory) {
         type = 'sale';
+      } else {
+        // Insufficient contextual evidence to determine sale vs expense
+        const amt = extractAmount(clause);
+        const formatted = amt ? `₹${amt.toLocaleString('en-IN')}` : 'this amount';
+        return {
+          success: false,
+          transactions: [],
+          isAmbiguous: true,
+          message: `I have the amount ${formatted}, but I’m not sure whether this is a sale or an expense. Please tell me what it was for.`,
+        };
       }
     }
 
