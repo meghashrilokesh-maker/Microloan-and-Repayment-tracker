@@ -9,13 +9,17 @@ import ExpensesScreen from './screens/ExpensesScreen';
 import LoansScreen from './screens/LoansScreen';
 import ReportsScreen from './screens/ReportsScreen';
 import { NotificationsDrawer, ProfileSettingsModal } from './components/SettingsAndNotifs';
+import { AIBusinessAssistant } from './components/AIBusinessAssistant';
+import { AddSaleModal, AddExpenseModal } from './components/TransactionModals';
 import { CheckCircle2 } from 'lucide-react';
 
 function AppContent() {
   const { 
     activeTab, 
     toastMessage,
-    profile
+    profile,
+    transactionModalRequest,
+    closeTransactionModal
   } = useApp();
 
   // App phase navigation: 'landing' | 'auth' | 'main'
@@ -109,17 +113,61 @@ function AppContent() {
             Direct to Dashboard →
           </button>
         </div>
+
+        {/* Global Floating AI Business Assistant */}
+        <AIBusinessAssistant />
+
+        {/* Global Voice-Autofilled Transaction Modals (Phase 3C) */}
+        {transactionModalRequest?.type === 'sale' && (
+          <AddSaleModal
+            isOpen={true}
+            initialValues={transactionModalRequest.initialValues}
+            onClose={closeTransactionModal}
+            onSaved={(entry) => transactionModalRequest.onSaved?.(entry)}
+          />
+        )}
+        {transactionModalRequest?.type === 'expense' && (
+          <AddExpenseModal
+            isOpen={true}
+            initialValues={transactionModalRequest.initialValues}
+            onClose={closeTransactionModal}
+            onSaved={(entry) => transactionModalRequest.onSaved?.(entry)}
+          />
+        )}
       </div>
     );
   }
 
   if (appPhase === 'auth' || (!profile.isLoggedIn && appPhase === 'main')) {
     return (
-      <AuthScreen
-        initialMode={authMode || 'login'}
-        onLoginSuccess={() => setAppPhase('main')}
-        onBackToLanding={() => setAppPhase('landing')}
-      />
+      <div className="relative">
+        <AuthScreen
+          initialMode={authMode || 'login'}
+          onLoginSuccess={() => setAppPhase('main')}
+          onBackToLanding={() => setAppPhase('landing')}
+        />
+
+        {/* Global Floating AI Business Assistant */}
+        <AIBusinessAssistant />
+
+        {/* Global Voice-Autofilled Transaction Modals (Phase 3C) */}
+        {transactionModalRequest?.type === 'sale' && (
+          <AddSaleModal
+            isOpen={true}
+            initialValues={transactionModalRequest.initialValues}
+            onClose={closeTransactionModal}
+            onSaved={(entry) => transactionModalRequest.onSaved?.(entry)}
+          />
+        )}
+        {transactionModalRequest?.type === 'expense' && (
+          <AddExpenseModal
+            isOpen={true}
+            initialValues={transactionModalRequest.initialValues}
+            onClose={closeTransactionModal}
+            onSaved={(entry) => transactionModalRequest.onSaved?.(entry)}
+          />
+        )}
+      </div>
     );
   }
 
@@ -167,9 +215,28 @@ function AppContent() {
         <BottomNav />
       </div>
 
-      {/* Global Modals & Drawers */}
+      {/* Global Modals, Drawers & Business Assistant */}
       <NotificationsDrawer />
       <ProfileSettingsModal />
+      <AIBusinessAssistant />
+
+      {/* Global Voice-Autofilled Transaction Modals (Phase 3C) */}
+      {transactionModalRequest?.type === 'sale' && (
+        <AddSaleModal
+          isOpen={true}
+          initialValues={transactionModalRequest.initialValues}
+          onClose={closeTransactionModal}
+          onSaved={(entry) => transactionModalRequest.onSaved?.(entry)}
+        />
+      )}
+      {transactionModalRequest?.type === 'expense' && (
+        <AddExpenseModal
+          isOpen={true}
+          initialValues={transactionModalRequest.initialValues}
+          onClose={closeTransactionModal}
+          onSaved={(entry) => transactionModalRequest.onSaved?.(entry)}
+        />
+      )}
     </div>
   );
 }

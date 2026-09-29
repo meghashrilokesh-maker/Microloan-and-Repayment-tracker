@@ -225,6 +225,16 @@ export function AppProvider({ children }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+  // Transaction Modal Request State for Voice Autofill / Review (Phase 3C)
+  const [transactionModalRequest, setTransactionModalRequest] = useState(null);
+
+  const openTransactionModal = useCallback(({ type, initialValues, onSaved }) => {
+    setTransactionModalRequest({ type, initialValues, onSaved });
+  }, []);
+
+  const closeTransactionModal = useCallback(() => {
+    setTransactionModalRequest(null);
+  }, []);
 
   const fetchLoans = async () => {
     const [loansRes, repaymentsRes] = await Promise.all([
@@ -1460,7 +1470,10 @@ export function AppProvider({ children }) {
         loadingFinancials,
         financialsError,
         supabase,
-        isSupabaseConfigured
+        isSupabaseConfigured,
+        transactionModalRequest,
+        openTransactionModal,
+        closeTransactionModal
       }}
     >
       {children}

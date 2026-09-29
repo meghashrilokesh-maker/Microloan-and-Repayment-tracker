@@ -1,24 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
   Landmark, 
   Mic, 
   Check, 
-  Sparkles,
-  Calendar,
-  CreditCard,
-  ShieldAlert
+  Sparkles, 
+  Calendar, 
+  CreditCard, 
+  ShieldAlert 
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-export function AddSaleModal({ isOpen, onClose }) {
+export function AddSaleModal({ isOpen, onClose, initialValues = null, onSaved = null }) {
   const { t, addSale } = useApp();
-  const [amount, setAmount] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [category, setCategory] = useState('Vegetables');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [note, setNote] = useState('');
+  const [amount, setAmount] = useState(() => (initialValues?.amount !== undefined && initialValues?.amount !== null ? String(initialValues.amount) : ''));
+  const [customerName, setCustomerName] = useState(() => initialValues?.customerName || '');
+  const [category, setCategory] = useState(() => initialValues?.category || 'Vegetables');
+  const [date, setDate] = useState(() => initialValues?.date || new Date().toISOString().split('T')[0]);
+  const [note, setNote] = useState(() => initialValues?.note || '');
+
+  // Synchronize initialValues when modal opens or initialValues change, and reset cleanly on close
+  useEffect(() => {
+    if (isOpen) {
+      if (initialValues) {
+        setAmount(initialValues.amount !== undefined && initialValues.amount !== null ? String(initialValues.amount) : '');
+        setCustomerName(initialValues.customerName || '');
+        setCategory(initialValues.category || 'Vegetables');
+        setDate(initialValues.date || new Date().toISOString().split('T')[0]);
+        setNote(initialValues.note || '');
+      } else {
+        setAmount('');
+        setCustomerName('');
+        setCategory('Vegetables');
+        setDate(new Date().toISOString().split('T')[0]);
+        setNote('');
+      }
+    } else {
+      setAmount('');
+      setCustomerName('');
+      setCategory('Vegetables');
+      setDate(new Date().toISOString().split('T')[0]);
+      setNote('');
+    }
+  }, [isOpen, initialValues]);
 
   // Voice recording simulation states
   const [isListening, setIsListening] = useState(false);
@@ -63,10 +88,13 @@ export function AddSaleModal({ isOpen, onClose }) {
     e.preventDefault();
     if (!amount || Number(amount) <= 0) return;
     try {
-      await addSale({ amount: Number(amount), category, customerName, date, note });
+      const savedEntry = await addSale({ amount: Number(amount), category, customerName, date, note });
       setAmount('');
       setCustomerName('');
       setNote('');
+      if (onSaved) {
+        onSaved(savedEntry || { type: 'sale', amount: Number(amount), category, customerName, date, note });
+      }
       onClose();
     } catch (_err) {
       // Toast already shown in context
@@ -274,13 +302,38 @@ export function AddSaleModal({ isOpen, onClose }) {
   );
 }
 
-export function AddExpenseModal({ isOpen, onClose }) {
+export function AddExpenseModal({ isOpen, onClose, initialValues = null, onSaved = null }) {
   const { t, addExpense } = useApp();
-  const [amount, setAmount] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [category, setCategory] = useState('Stock / Purchases');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [note, setNote] = useState('');
+  const [amount, setAmount] = useState(() => (initialValues?.amount !== undefined && initialValues?.amount !== null ? String(initialValues.amount) : ''));
+  const [customerName, setCustomerName] = useState(() => initialValues?.customerName || '');
+  const [category, setCategory] = useState(() => initialValues?.category || 'Stock / Purchases');
+  const [date, setDate] = useState(() => initialValues?.date || new Date().toISOString().split('T')[0]);
+  const [note, setNote] = useState(() => initialValues?.note || '');
+
+  // Synchronize initialValues when modal opens or initialValues change, and reset cleanly on close
+  useEffect(() => {
+    if (isOpen) {
+      if (initialValues) {
+        setAmount(initialValues.amount !== undefined && initialValues.amount !== null ? String(initialValues.amount) : '');
+        setCustomerName(initialValues.customerName || '');
+        setCategory(initialValues.category || 'Stock / Purchases');
+        setDate(initialValues.date || new Date().toISOString().split('T')[0]);
+        setNote(initialValues.note || '');
+      } else {
+        setAmount('');
+        setCustomerName('');
+        setCategory('Stock / Purchases');
+        setDate(new Date().toISOString().split('T')[0]);
+        setNote('');
+      }
+    } else {
+      setAmount('');
+      setCustomerName('');
+      setCategory('Stock / Purchases');
+      setDate(new Date().toISOString().split('T')[0]);
+      setNote('');
+    }
+  }, [isOpen, initialValues]);
 
   if (!isOpen) return null;
 
@@ -299,10 +352,13 @@ export function AddExpenseModal({ isOpen, onClose }) {
     e.preventDefault();
     if (!amount || Number(amount) <= 0) return;
     try {
-      await addExpense({ amount: Number(amount), category, customerName, date, note });
+      const savedEntry = await addExpense({ amount: Number(amount), category, customerName, date, note });
       setAmount('');
       setCustomerName('');
       setNote('');
+      if (onSaved) {
+        onSaved(savedEntry || { type: 'expense', amount: Number(amount), category, customerName, date, note });
+      }
       onClose();
     } catch (_err) {
       // Toast already shown in context
