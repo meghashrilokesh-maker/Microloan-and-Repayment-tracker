@@ -681,7 +681,7 @@ export function AppProvider({ children }) {
 
     // 2. Real Supabase Authentication
     if (!supabase) {
-      throw new Error('Supabase authentication is not configured in this deployment. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in your Vercel Project Settings > Environment Variables, then redeploy.');
+      throw new Error('Authentication service is currently unavailable. Please check your connection or contact support.');
     }
 
     const isEmail = cleanIdent.includes('@');
@@ -738,7 +738,7 @@ export function AppProvider({ children }) {
     }
 
     if (!supabase) {
-      throw new Error('Supabase authentication is not configured in this deployment. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in your Vercel Project Settings > Environment Variables, then redeploy.');
+      throw new Error('Authentication service is currently unavailable. Please check your connection or contact support.');
     }
 
     const userType = formData.userType || 'vendor';
