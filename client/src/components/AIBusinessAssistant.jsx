@@ -28,10 +28,10 @@ import { parseVoiceTransactions, extractAmount } from '../utils/voiceTransaction
  * Default prompt suggestions for quick business questions.
  */
 const QUICK_SUGGESTIONS = [
-  'How much did I sell today?',
-  'Show my expenses',
-  'Which loan is due next?',
-  'Give me ideas to increase profit',
+  'How is my business doing this week?',
+  'What was my biggest expense?',
+  'Compare this week with last week',
+  'Give me suggestions to improve my business',
 ];
 
 const INITIAL_WELCOME = 'Hi! I can help you with your sales, expenses, loans and reports.';
@@ -502,7 +502,7 @@ export function AIBusinessAssistant() {
                     Business Assistant
                   </h3>
                   <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
-                    {isListening ? 'Listening...' : 'Phase 4A'}
+                    {isListening ? 'Listening...' : 'Phase 4B'}
                   </span>
                 </div>
                 <p className="text-[11px] text-[#7C746F]">
@@ -807,7 +807,7 @@ export function AIBusinessAssistant() {
           {/* Footer note */}
           <div className="px-4 py-1.5 bg-[#FAF7F2] border-t border-[#EBE3D7] flex items-center justify-center gap-1 text-[10px] text-[#7C746F]">
             <Info className="w-3 h-3 text-[#A09891]" />
-            <span>Voice & Text Multi-Draft Autofill • Phase 4A</span>
+            <span>Business Intelligence & Voice • Phase 4B</span>
           </div>
         </div>
       )}
