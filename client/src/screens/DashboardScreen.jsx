@@ -6,13 +6,11 @@ import {
   Clock, 
   CheckCircle2, 
   ChevronRight, 
-  Sparkles, 
   Wallet,
   Landmark
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import NaturalVendorImage from '../components/NaturalVendorImage';
-import HomeBackgroundArt from '../components/HomeBackgroundArt';
 import { 
   AddSaleModal, 
   AddExpenseModal, 
@@ -68,10 +66,7 @@ export default function DashboardScreen() {
   .slice(0, 5);
 
   return (
-    <div className="space-y-6 animate-in fade-in relative w-full lg:max-w-[960px] xl:max-w-[1020px] 2xl:max-w-[1060px] lg:ml-auto lg:mr-2 xl:mr-6 transition-all duration-300">
-      {/* Subtle Hand-Painted Background Artwork: Person reading newspaper at cafe table */}
-      <HomeBackgroundArt />
-
+    <div className="space-y-6 animate-in fade-in relative w-full">
       {/* 1. TOP GREETING & VENDOR HERO BANNER */}
       <div className="relative overflow-hidden bg-[#FAF3EA] rounded-3xl p-5 sm:p-6 lg:p-7 border border-[#EAE1D4] shadow-soft flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Soft pastel background arch motif */}
@@ -108,41 +103,8 @@ export default function DashboardScreen() {
 
       {/* 2. RESPONSIVE DASHBOARD GRID: Left Main Content (8 cols) & Right Sidebar (4 cols) on Desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Financial Flow Ribbon, Main Today's Money Card, Quick Actions */}
+        {/* Left Column: Main Today's Money Card, Quick Actions */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Visual Financial Flow Ribbon */}
-          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#EBE3D7] shadow-soft">
-            <div className="text-[10px] font-bold text-[#8E8681] uppercase tracking-wider mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#6B8569]" />
-                <span>Flow of Money Today</span>
-              </div>
-              <span className="text-[10px] text-[#566E54] font-semibold bg-[#E9EFE8] px-2.5 py-0.5 rounded-full border border-[#D3DFD2]">
-                Balanced & Real-Time
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2 overflow-x-auto text-center text-xs">
-              <div className="flex-1 min-w-[75px] bg-[#E9EFE8]/80 p-3 rounded-2xl border border-[#D3DFD2]">
-                <span className="text-[10px] text-[#425541] block font-medium">{t.flowSales}</span>
-                <span className="font-serif font-bold text-[#314030] text-sm sm:text-base mt-0.5 block">₹{todaySalesTotal}</span>
-              </div>
-              <span className="text-[#C3B099] font-bold text-sm">−</span>
-              <div className="flex-1 min-w-[75px] bg-[#F8ECE6]/80 p-3 rounded-2xl border border-[#F0D7CD]">
-                <span className="text-[10px] text-[#874937] block font-medium">{t.flowExpenses}</span>
-                <span className="font-serif font-bold text-[#673627] text-sm sm:text-base mt-0.5 block">₹{todayExpensesTotal}</span>
-              </div>
-              <span className="text-[#C3B099] font-bold text-sm">−</span>
-              <div className="flex-1 min-w-[75px] bg-[#F2F0F8]/80 p-3 rounded-2xl border border-[#E3DFEF]">
-                <span className="text-[10px] text-[#554C78] block font-medium">{t.flowRepayment}</span>
-                <span className="font-serif font-bold text-[#3F3760] text-sm sm:text-base mt-0.5 block">₹{todayRepaymentsTotal}</span>
-              </div>
-              <span className="text-[#C3B099] font-bold text-sm">=</span>
-              <div className="flex-1 min-w-[85px] bg-[#6B8569] text-white p-3 rounded-2xl shadow-pastel">
-                <span className="text-[10px] text-[#E9EFE8] block font-semibold">{t.flowMoneyLeft}</span>
-                <span className="font-serif font-bold text-sm sm:text-base mt-0.5 block">₹{moneyLeft}</span>
-              </div>
-            </div>
-          </div>
 
           {/* MAIN CARD: "Today's Money" */}
           <div className="bg-white rounded-3xl p-5 sm:p-7 border border-[#EBE3D7] shadow-soft relative overflow-hidden">

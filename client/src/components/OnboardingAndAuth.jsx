@@ -338,6 +338,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
   const [location, setLocation] = useState('');
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [locationNotice, setLocationNotice] = useState(null);
+  const [locationStatus, setLocationStatus] = useState('idle'); // 'idle' | 'detecting' | 'success' | 'denied' | 'unavailable' | 'timeout' | 'unsupported'
   const [language, setLanguage] = useState('en');
   const [interests, setInterests] = useState([]);
 
@@ -369,57 +370,165 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
   // Total steps based on role
   const totalInputSteps = userType === 'vendor' ? 4 : 3;
 
+  // --- Reverse Geocoding Helper (Area/Locality, City, State, Country) ---
+  const reverseGeocodeCoordinates = async (lat, lon) => {
+    const formatNominatim = (address) => {
+      if (!address) return '';
+      const locality = 
+        address.suburb || 
+        address.neighbourhood || 
+        address.subdistrict || 
+        address.residential || 
+        address.commercial ||
+        address.quarter ||
+        address.village || 
+        address.hamlet || 
+        address.road || 
+        '';
+
+      const city = 
+        address.city || 
+        address.town || 
+        address.municipality || 
+        address.county || 
+        address.city_district || 
+        address.state_district || 
+        '';
+
+      const state = address.state || '';
+      const country = address.country || '';
+
+      const parts = [];
+      [locality, city, state, country].forEach((p) => {
+        const trimmed = (p || '').trim();
+        if (trimmed && !parts.some(existing => existing.toLowerCase() === trimmed.toLowerCase())) {
+          parts.push(trimmed);
+        }
+      });
+
+      return parts.join(', ');
+    };
+
+    // Primary: OpenStreetMap Nominatim with high zoom (street/locality details)
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
+        {
+          headers: { 'Accept-Language': 'en' },
+          signal: controller.signal
+        }
+      );
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const formatted = formatNominatim(data?.address);
+        if (formatted) return formatted;
+      }
+    } catch (e) {
+      // Fallback to secondary client-side service below
+    }
+
+    // Secondary fallback: BigDataCloud client-side reverse geocoding
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const resp = await fetch(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        const bdcData = await resp.json();
+        const locality = bdcData.locality || bdcData.localityInfo?.administrative?.[3]?.name || '';
+        const city = bdcData.city || bdcData.localityInfo?.administrative?.[2]?.name || '';
+        const state = bdcData.principalSubdivision || '';
+        const country = bdcData.countryName || '';
+
+        const parts = [];
+        [locality, city, state, country].forEach((p) => {
+          const trimmed = (p || '').trim();
+          if (trimmed && !parts.some(existing => existing.toLowerCase() === trimmed.toLowerCase())) {
+            parts.push(trimmed);
+          }
+        });
+
+        const formatted = parts.join(', ');
+        if (formatted) return formatted;
+      }
+    } catch (e) {
+      // Both reverse geocoding services failed
+    }
+
+    return null;
+  };
+
   // --- Location Geolocation Handler (Explicit Permission, Non-Continuous) ---
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
+      setLocationStatus('unsupported');
       setLocationNotice('Geolocation is not supported by your browser. Please enter your location manually.');
       setLocationMode('manual');
       return;
     }
 
     setDetectingLocation(true);
-    setLocationNotice(null);
+    setLocationStatus('detecting');
+    setLocationNotice('Detecting location...');
 
-    // Explicit one-shot location request. Never continuous.
+    // Explicit one-shot location request with high accuracy and fresh position (never continuous)
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         setDetectingLocation(false);
-        const lat = position.coords.latitude.toFixed(4);
-        const lon = position.coords.longitude.toFixed(4);
+        const { latitude, longitude } = position.coords;
 
         try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1`,
-            { headers: { 'Accept-Language': 'en' } }
-          );
-          const data = await response.json();
-          const cityOrArea = 
-            data.address?.suburb || 
-            data.address?.neighbourhood || 
-            data.address?.city || 
-            data.address?.town || 
-            data.address?.county || 
-            'Local Market';
-          const state = data.address?.state ? `, ${data.address.state}` : '';
-          const detectedStr = `${cityOrArea}${state}`;
-          setLocation(detectedStr);
-          setLocationNotice(`✓ Location detected: ${detectedStr}`);
+          const readableLocation = await reverseGeocodeCoordinates(latitude, longitude);
+
+          if (readableLocation) {
+            setLocation(readableLocation);
+            setLocationStatus('success');
+            setLocationNotice(`✓ Location detected: ${readableLocation}`);
+          } else {
+            // Reverse geocoding could not resolve address name; do NOT show fake/guessed city
+            setLocationStatus('unavailable');
+            setLocationNotice('Unable to detect location name from coordinates. Please enter your location manually.');
+            setLocationMode('manual');
+          }
         } catch (e) {
-          const fallbackStr = `Market Area (${lat}° N, ${lon}° E)`;
-          setLocation(fallbackStr);
-          setLocationNotice(`✓ Approximate coordinates captured: ${lat}, ${lon}`);
+          setLocationStatus('unavailable');
+          setLocationNotice('Unable to detect location. Please enter your location manually.');
+          setLocationMode('manual');
         }
       },
       (err) => {
         setDetectingLocation(false);
-        let notice = 'Location permission was denied or unavailable. Please type your city/market below.';
-        if (err.code === err.TIMEOUT) {
+        let status = 'unavailable';
+        let notice = 'Unable to detect location. Please enter your location manually.';
+
+        if (err.code === err.PERMISSION_DENIED) {
+          status = 'denied';
+          notice = 'Location permission denied. Please enter your location manually.';
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          status = 'unavailable';
+          notice = 'Unable to detect location: device position is unavailable. Please enter your location manually.';
+        } else if (err.code === err.TIMEOUT) {
+          status = 'timeout';
           notice = 'Location request timed out. Please enter your location manually.';
         }
+
+        setLocationStatus(status);
         setLocationNotice(notice);
         setLocationMode('manual');
       },
-      { timeout: 7000, maximumAge: 60000, enableHighAccuracy: false }
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0 // Fresh position, never stale cache
+      }
     );
   };
 
@@ -503,7 +612,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
         businessName: userType === 'vendor' ? businessName.trim() : 'Customer Profile',
         businessType: userType === 'vendor' ? effectiveBusinessType : 'Customer',
         productsServices: userType === 'vendor' ? productsServices.trim() : '',
-        location: location.trim() || 'Local Market Area',
+        location: location.trim(),
         language,
         interests: userType === 'customer' ? interests : []
       });
@@ -1184,16 +1293,22 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                           className="px-3 py-1.5 rounded-full bg-white hover:bg-[#F3EDE3] border border-[#D5CDC1] text-xs font-semibold text-[#566E54] flex items-center gap-1.5 shadow-soft transition touch-press"
                         >
                           <NavigationIcon className="w-3.5 h-3.5 text-[#566E54]" />
-                          <span>{detectingLocation ? 'Detecting...' : 'Detect My Location'}</span>
+                          <span>{detectingLocation ? 'Detecting location...' : 'Detect My Location'}</span>
                         </button>
                       </div>
                       <p className="text-[10px] text-[#7C746F] leading-relaxed">
-                        We only check your approximate city/market area once. TrackShack never tracks your continuous location in the background.
+                        We only check your location once when you click detect. TrackShack never tracks your continuous location in the background.
                       </p>
                     </div>
 
                     {locationNotice && (
-                      <div className="mt-1.5 p-2 rounded-xl bg-[#F0F5EF] border border-[#DCE8DC] text-[11px] font-medium text-[#3A5338]">
+                      <div className={`mt-1.5 p-2 rounded-xl border text-[11px] font-medium ${
+                        locationStatus === 'success'
+                          ? 'bg-[#F0F5EF] border-[#DCE8DC] text-[#3A5338]'
+                          : locationStatus === 'detecting'
+                          ? 'bg-[#F3EDE3] border-[#E2D5C3] text-[#605955]'
+                          : 'bg-[#FDF2F0] border-[#F5D5D0] text-[#A63C2E]'
+                      }`}>
                         {locationNotice}
                       </div>
                     )}
@@ -1201,15 +1316,18 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                     {/* Manual Location Input */}
                     <div className="mt-2.5">
                       <label className="block text-[11px] font-medium text-[#7C746F] mb-1">
-                        Or enter city, market or street manually:
+                        Enter location manually (or edit detected location):
                       </label>
                       <div className="relative flex items-center">
                         <MapPin className="w-4 h-4 absolute left-3.5 text-[#7C746F]" />
                         <input
                           type="text"
                           value={location}
-                          onChange={(e) => setLocation(e.target.value)}
-                          placeholder="e.g. City Market, Cross 4, Bengaluru"
+                          onChange={(e) => {
+                            setLocation(e.target.value);
+                            if (locationStatus !== 'idle') setLocationStatus('idle');
+                          }}
+                          placeholder="e.g. Market Road, Sector 4"
                           className="w-full pl-10 pr-4 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl text-xs font-medium text-[#2D2825] focus:bg-white focus:border-[#6B8569] outline-none transition"
                         />
                       </div>
@@ -1297,28 +1415,40 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                           className="px-3 py-1.5 rounded-full bg-white hover:bg-[#F3EDE3] border border-[#D5CDC1] text-xs font-semibold text-[#566E54] flex items-center gap-1.5 shadow-soft transition touch-press"
                         >
                           <NavigationIcon className="w-3.5 h-3.5 text-[#566E54]" />
-                          <span>{detectingLocation ? 'Detecting...' : 'Detect Location'}</span>
+                          <span>{detectingLocation ? 'Detecting location...' : 'Detect Location'}</span>
                         </button>
                       </div>
                       <p className="text-[10px] text-[#7C746F] leading-relaxed">
-                        We only check your approximate city/market area once. TrackShack never tracks your continuous location in the background.
+                        We only check your location once when you click detect. TrackShack never tracks your continuous location in the background.
                       </p>
                     </div>
 
                     {locationNotice && (
-                      <div className="mt-1.5 p-2 rounded-xl bg-[#F0F5EF] border border-[#DCE8DC] text-[11px] font-medium text-[#3A5338]">
+                      <div className={`mt-1.5 p-2 rounded-xl border text-[11px] font-medium ${
+                        locationStatus === 'success'
+                          ? 'bg-[#F0F5EF] border-[#DCE8DC] text-[#3A5338]'
+                          : locationStatus === 'detecting'
+                          ? 'bg-[#F3EDE3] border-[#E2D5C3] text-[#605955]'
+                          : 'bg-[#FDF2F0] border-[#F5D5D0] text-[#A63C2E]'
+                      }`}>
                         {locationNotice}
                       </div>
                     )}
 
                     <div className="mt-2.5">
+                      <label className="block text-[11px] font-medium text-[#7C746F] mb-1">
+                        Enter location manually (or edit detected location):
+                      </label>
                       <div className="relative flex items-center">
                         <MapPin className="w-4 h-4 absolute left-3.5 text-[#7C746F]" />
                         <input
                           type="text"
                           value={location}
-                          onChange={(e) => setLocation(e.target.value)}
-                          placeholder="e.g. Indiranagar, Bengaluru"
+                          onChange={(e) => {
+                            setLocation(e.target.value);
+                            if (locationStatus !== 'idle') setLocationStatus('idle');
+                          }}
+                          placeholder="e.g. Gandhi Nagar, Central Market"
                           className="w-full pl-10 pr-4 py-2.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl text-xs font-medium text-[#2D2825] focus:bg-white focus:border-[#6B8569] outline-none transition"
                         />
                       </div>
