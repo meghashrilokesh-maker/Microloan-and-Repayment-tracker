@@ -12,11 +12,13 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('TrackShack caught an error in ErrorBoundary:', error, errorInfo);
+    console.error('Vridhi caught an error in ErrorBoundary:', error, errorInfo);
   }
 
   handleReset = () => {
     try {
+      localStorage.removeItem('vridhi_token');
+      localStorage.removeItem('vridhi_profile');
       localStorage.removeItem('trackshack_token');
       localStorage.removeItem('trackshack_profile');
       localStorage.removeItem('trackshack_sales');
@@ -52,7 +54,7 @@ export class ErrorBoundary extends React.Component {
                 Something went wrong
               </h2>
               <p className="text-xs text-[#7C746F] leading-relaxed">
-                TrackShack caught an issue and protected your screen from going blank.
+                Vridhi caught an issue and protected your screen from going blank.
               </p>
             </div>
 

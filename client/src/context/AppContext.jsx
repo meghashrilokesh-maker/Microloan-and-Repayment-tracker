@@ -125,7 +125,7 @@ export function AppProvider({ children }) {
   // Safe Profile Parser: guards against corrupted localStorage or {code, message} objects
   const [profile, setProfile] = useState(() => {
     try {
-      const saved = localStorage.getItem('trackshack_profile');
+      const saved = localStorage.getItem('vridhi_profile') || localStorage.getItem('trackshack_profile');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed.ownerName === 'string' && !parsed.code && parsed.isLoggedIn && parsed.id) {
@@ -314,8 +314,10 @@ export function AppProvider({ children }) {
   useEffect(() => {
     try {
       if (profile.isLoggedIn && profile.id) {
+        localStorage.setItem('vridhi_profile', JSON.stringify(profile));
         localStorage.setItem('trackshack_profile', JSON.stringify(profile));
       } else {
+        localStorage.removeItem('vridhi_profile');
         localStorage.removeItem('trackshack_profile');
       }
     } catch (e) {
@@ -663,9 +665,12 @@ export function AppProvider({ children }) {
         if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) {
           await loadUserProfile(session.user);
           if (session.access_token) {
+            localStorage.setItem('vridhi_token', session.access_token);
             localStorage.setItem('trackshack_token', session.access_token);
           }
         } else if (event === 'SIGNED_OUT') {
+          localStorage.removeItem('vridhi_token');
+          localStorage.removeItem('vridhi_profile');
           localStorage.removeItem('trackshack_token');
           localStorage.removeItem('trackshack_profile');
           setSales([]);
@@ -1008,6 +1013,8 @@ export function AppProvider({ children }) {
     } catch (err) {
       console.warn('Supabase signOut warning:', err);
     }
+    localStorage.removeItem('vridhi_token');
+    localStorage.removeItem('vridhi_profile');
     localStorage.removeItem('trackshack_token');
     localStorage.removeItem('trackshack_profile');
 
@@ -1202,6 +1209,129 @@ export function AppProvider({ children }) {
     } catch (e) {}
 
     return newEntry;
+  };
+
+  // Legitimate Financial Transaction Import & Deduplication Protection (Part 3)
+  const importTransactions = async (importedList) => {
+    if (!Array.isArray(importedList) || importedList.length === 0) {
+      return { success: false, importedCount: 0, duplicateCount: 0, message: 'No transactions provided.' };
+    }
+
+    const isRealUser = profile.id && profile.id !== 'demo-vendor-ravi';
+    const existingTxIds = new Set();
+    const existingSignatures = new Set();
+
+    (sales || []).forEach(s => {
+      if (s.id) existingTxIds.add(String(s.id));
+      if (s.external_transaction_id) existingTxIds.add(String(s.external_transaction_id));
+      if (s.metadata?.external_transaction_id) existingTxIds.add(String(s.metadata.external_transaction_id));
+      const sig = `${s.date || ''}_${Number(s.amount)}_${(s.customer_name || s.customerName || '').toLowerCase().trim()}`;
+      existingSignatures.add(sig);
+    });
+
+    (expenses || []).forEach(e => {
+      if (e.id) existingTxIds.add(String(e.id));
+      if (e.external_transaction_id) existingTxIds.add(String(e.external_transaction_id));
+      if (e.metadata?.external_transaction_id) existingTxIds.add(String(e.metadata.external_transaction_id));
+      const sig = `${e.date || ''}_${Number(e.amount)}_${(e.customer_name || e.customerName || '').toLowerCase().trim()}`;
+      existingSignatures.add(sig);
+    });
+
+    const newSalesToInsert = [];
+    const newExpensesToInsert = [];
+    let duplicateCount = 0;
+
+    for (const item of importedList) {
+      const cleanAmount = Number(item.amount);
+      if (!cleanAmount || cleanAmount <= 0) continue;
+
+      const extId = item.external_transaction_id || item.utr || item.reference_id || item.id;
+      const dateStr = item.date || todayStr;
+      const timeStr = item.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const partyName = item.customer_name || item.counterparty || item.party || '';
+      const noteStr = item.description || item.note || `Imported UPI (${item.source || 'Statement'})`;
+      const signature = `${dateStr}_${cleanAmount}_${partyName.toLowerCase().trim()}`;
+
+      // Duplicate protection: check stable provider identifier or transaction signature
+      if ((extId && existingTxIds.has(String(extId))) || (extId && existingSignatures.has(signature))) {
+        duplicateCount++;
+        continue;
+      }
+
+      if (extId) existingTxIds.add(String(extId));
+      existingSignatures.add(signature);
+
+      const direction = (item.type || item.direction || 'sale').toLowerCase();
+      const isSale = direction === 'sale' || direction === 'credit' || direction === 'received' || direction === 'inflow';
+
+      const entry = {
+        id: (isSale ? 's_imp_' : 'e_imp_') + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        user_id: profile.id,
+        type: isSale ? 'sale' : 'expense',
+        amount: cleanAmount,
+        category: item.category || (isSale ? 'UPI Sales' : 'Business Expense'),
+        customer_name: partyName || null,
+        customerName: partyName || null,
+        date: dateStr,
+        time: timeStr,
+        note: noteStr,
+        description: noteStr,
+        external_transaction_id: extId || null,
+        metadata: {
+          payment_mode: 'UPI',
+          source: item.source || 'upi_statement',
+          external_transaction_id: extId || null,
+          payer_payee: partyName || null,
+          imported_at: new Date().toISOString()
+        }
+      };
+
+      if (isSale) {
+        newSalesToInsert.push(entry);
+      } else {
+        newExpensesToInsert.push(entry);
+      }
+    }
+
+    const totalNew = newSalesToInsert.length + newExpensesToInsert.length;
+    if (totalNew === 0) {
+      showToast(duplicateCount > 0 ? `0 new transactions imported (${duplicateCount} duplicate(s) skipped)` : 'No valid transactions found.');
+      return { success: true, importedCount: 0, duplicateCount };
+    }
+
+    // Persist into Supabase for authenticated real user
+    if (isRealUser && supabase) {
+      try {
+        const dbPayload = [...newSalesToInsert, ...newExpensesToInsert].map(tx => ({
+          user_id: profile.id,
+          type: tx.type,
+          amount: tx.amount,
+          category: tx.category,
+          customer_name: tx.customer_name,
+          date: tx.date,
+          time: tx.time,
+          description: tx.description,
+          metadata: tx.metadata
+        }));
+
+        const { error } = await supabase.from('transactions').insert(dbPayload);
+        if (error) {
+          console.warn('Supabase bulk insert transactions warning:', error.message);
+        }
+      } catch (err) {
+        console.warn('Supabase bulk import exception:', err.message);
+      }
+    }
+
+    if (newSalesToInsert.length > 0) {
+      setSales(prev => [...newSalesToInsert, ...prev]);
+    }
+    if (newExpensesToInsert.length > 0) {
+      setExpenses(prev => [...newExpensesToInsert, ...prev]);
+    }
+
+    showToast(`✓ Imported ${totalNew} transaction(s)${duplicateCount > 0 ? ` (${duplicateCount} duplicate(s) skipped)` : ''}!`);
+    return { success: true, importedCount: totalNew, duplicateCount };
   };
 
   const addLoan = async (loanData) => {
@@ -1473,7 +1603,8 @@ export function AppProvider({ children }) {
         isSupabaseConfigured,
         transactionModalRequest,
         openTransactionModal,
-        closeTransactionModal
+        closeTransactionModal,
+        importTransactions
       }}
     >
       {children}

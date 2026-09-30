@@ -9,7 +9,7 @@ const api = axios.create({
 
 // Attach JWT token to all requests if present
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('trackshack_token');
+  const token = localStorage.getItem('vridhi_token') || localStorage.getItem('trackshack_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -46,7 +46,7 @@ export const financialsApi = {
 };
 
 export function connectSSE(onEvent) {
-  const token = localStorage.getItem('trackshack_token');
+  const token = localStorage.getItem('vridhi_token') || localStorage.getItem('trackshack_token');
   if (!token) return null;
 
   try {

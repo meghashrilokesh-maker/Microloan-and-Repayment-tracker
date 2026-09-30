@@ -25,7 +25,7 @@ function AppContent() {
   // App phase navigation: 'landing' | 'auth' | 'main'
   const [appPhase, setAppPhase] = useState(() => {
     try {
-      const savedProfile = localStorage.getItem('trackshack_profile');
+      const savedProfile = localStorage.getItem('vridhi_profile') || localStorage.getItem('trackshack_profile');
       if (savedProfile) {
         const parsed = JSON.parse(savedProfile);
         if (parsed?.isLoggedIn && parsed?.id) {

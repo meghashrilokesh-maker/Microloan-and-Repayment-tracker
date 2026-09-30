@@ -30,7 +30,7 @@ import { authApi } from '../utils/api';
 /**
  * LandingScreen - Replaces the 3-step carousel with a single comprehensive landing page.
  * Follows the user's handwritten reference sketch:
- * - TrackShack branding at top
+ * - Vridhi branding at top
  * - Welcoming heading/subheading for Indian small business owners
  * - Indian vendor illustrations at sides / decorative placement
  * - 3 distinct feature cards (Track Daily Sales, Control Daily Expenses, Manage Microloans & Repayments)
@@ -55,13 +55,17 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
         {/* 1. TOP HEADER & BRANDING */}
         <header className="w-full flex items-center justify-between py-2">
           <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-[#6B8569] text-white flex items-center justify-center font-serif font-bold text-lg shadow-pastel">
-            TS
+          <div className="w-10 h-10 rounded-2xl overflow-hidden border border-[#D3DFD2] shadow-pastel bg-white flex items-center justify-center shrink-0">
+            <img 
+              src="/images/vridhi-logo.jpg" 
+              alt="Vridhi Logo" 
+              className="w-full h-full object-cover"
+            />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-serif font-bold text-lg sm:text-xl text-[#2D2825] tracking-tight">
-                TrackShack
+                Vridhi
               </span>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
                 Small Business
@@ -90,8 +94,8 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
         <div className="relative bg-white/70 backdrop-blur-sm rounded-3xl p-6 sm:p-10 border border-[#EBE3D7] shadow-soft text-center overflow-hidden">
           {/* Left Side: Blank as requested */}
 
-          {/* Right Side Decorative Illustration (Businessman at desk with computer) */}
-          <div className="hidden lg:block absolute right-4 bottom-2 pointer-events-none opacity-95">
+          {/* Right Side Decorative Illustration (Businessman at desk with computer) - shifted inward from edge */}
+          <div className="hidden lg:block absolute right-8 sm:right-10 md:right-12 lg:right-16 bottom-2 pointer-events-none opacity-95">
             <NaturalVendorImage 
               customSrc="/images/businessman-desk.jpg"
               size="lg" 
@@ -250,7 +254,7 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
             onClick={onGetStarted}
             className="w-full py-4 px-8 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-serif font-bold text-base shadow-pastel hover:shadow-soft-lg active:scale-98 transition flex items-center justify-center gap-2.5 touch-press"
           >
-            <span>Get Started with TrackShack</span>
+            <span>Get Started with Vridhi</span>
             <ArrowRight className="w-5 h-5" />
           </button>
 
@@ -283,7 +287,7 @@ export function LandingScreen({ onGetStarted, onLogin, onCreateAccount }) {
 
         {/* 5. MINIMAL FOOTER */}
         <footer className="w-full text-center py-2 text-[11px] text-[#9A938E] relative z-10">
-          <span>TrackShack • Digital Companion for Indian Small Businesses & Street Vendors</span>
+          <span>Vridhi • Digital Companion for Indian Small Businesses & Street Vendors</span>
         </footer>
       </div>
     </div>
@@ -677,10 +681,14 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
           </button>
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-[#6B8569] text-white flex items-center justify-center font-serif font-bold text-xs shadow-soft">
-              TS
+            <div className="w-7 h-7 rounded-xl overflow-hidden border border-[#D3DFD2] shadow-soft bg-white flex items-center justify-center shrink-0">
+              <img 
+                src="/images/vridhi-logo.jpg" 
+                alt="Vridhi Logo" 
+                className="w-full h-full object-cover"
+              />
             </div>
-            <span className="font-serif font-bold text-sm text-[#2D2825]">TrackShack</span>
+            <span className="font-serif font-bold text-sm text-[#2D2825]">Vridhi</span>
           </div>
         </div>
 
@@ -730,7 +738,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
               </div>
               <div>
                 <h3 className="font-serif font-bold text-sm text-[#2D2825]">
-                  Welcome Back to TrackShack
+                  Welcome Back to Vridhi
                 </h3>
                 <p className="text-[11px] text-[#7C746F] mt-0.5">
                   Sign in to view your daily sales, expenses & loans
@@ -805,7 +813,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                 disabled={loading}
                 className="w-full py-3.5 px-4 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold shadow-pastel active:scale-98 transition flex items-center justify-center gap-2 mt-2 touch-press disabled:opacity-60"
               >
-                <span>{loading ? 'Signing In...' : 'Log In to TrackShack'}</span>
+                <span>{loading ? 'Signing In...' : 'Log In to Vridhi'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
@@ -1043,7 +1051,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                   {/* User Type Selection Cards */}
                   <div>
                     <label className="block text-xs font-semibold text-[#48433F] mb-1.5">
-                      I am joining TrackShack as: <span className="text-[#BF745F]">*</span>
+                      I am joining Vridhi as: <span className="text-[#BF745F]">*</span>
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1279,7 +1287,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                         </button>
                       </div>
                       <p className="text-[10px] text-[#7C746F] leading-relaxed">
-                        We only check your location once when you click detect. TrackShack never tracks your continuous location in the background.
+                        We only check your location once when you click detect. Vridhi never tracks your continuous location in the background.
                       </p>
                     </div>
 
@@ -1401,7 +1409,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                         </button>
                       </div>
                       <p className="text-[10px] text-[#7C746F] leading-relaxed">
-                        We only check your location once when you click detect. TrackShack never tracks your continuous location in the background.
+                        We only check your location once when you click detect. Vridhi never tracks your continuous location in the background.
                       </p>
                     </div>
 
@@ -1561,7 +1569,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                   <>
                     <div className="space-y-1">
                       <h3 className="font-serif font-bold text-lg text-[#2D2825]">
-                        Welcome to TrackShack, {fullName.split(' ')[0]}!
+                        Welcome to Vridhi, {fullName.split(' ')[0]}!
                       </h3>
                       <p className="text-xs text-[#7C746F]">
                         {userType === 'vendor' 
@@ -1595,7 +1603,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                       onClick={onLoginSuccess}
                       className="w-full py-3.5 px-6 rounded-full bg-[#566E54] hover:bg-[#425541] text-white font-semibold text-xs shadow-pastel transition flex items-center justify-center gap-2 touch-press"
                     >
-                      <span>{userType === 'vendor' ? 'Go to My Vendor Dashboard' : 'Start Exploring TrackShack'}</span>
+                      <span>{userType === 'vendor' ? 'Go to My Vendor Dashboard' : 'Start Exploring Vridhi'}</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </>

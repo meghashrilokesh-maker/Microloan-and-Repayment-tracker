@@ -17,7 +17,7 @@ export default function HomeBackgroundArt() {
           - Enhanced visibility (~0.28) in the open left area with multiply blending
       */}
       <div 
-        className="pointer-events-none absolute left-0 top-0 bottom-0 z-0 overflow-hidden select-none w-[24vw] min-w-[260px] max-w-[440px] h-[95vh] max-h-[960px] opacity-[0.28] hidden sm:block"
+        className="pointer-events-none absolute left-4 sm:left-8 md:left-12 top-0 bottom-0 z-0 overflow-hidden select-none w-[22vw] min-w-[240px] max-w-[400px] h-[95vh] max-h-[960px] opacity-[0.26] hidden sm:block"
         aria-hidden="true"
       >
         <img 
@@ -34,10 +34,10 @@ export default function HomeBackgroundArt() {
 
       {/* Mobile Subtle Watermark:
           - Automatically reduced in size and opacity (0.10)
-          - Moved farther toward the left edge so it never covers content or text
+          - Positioned inward so it never covers content or text
       */}
       <div 
-        className="pointer-events-none absolute -left-12 top-6 z-0 overflow-hidden select-none w-52 h-80 opacity-[0.10] sm:hidden"
+        className="pointer-events-none absolute left-2 top-6 z-0 overflow-hidden select-none w-48 h-72 opacity-[0.09] sm:hidden"
         aria-hidden="true"
       >
         <img 

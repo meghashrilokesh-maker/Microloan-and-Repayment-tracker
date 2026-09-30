@@ -7,7 +7,8 @@ import {
   CheckCircle2, 
   ChevronRight, 
   Wallet,
-  Landmark
+  Landmark,
+  ArrowDownToLine
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import NaturalVendorImage from '../components/NaturalVendorImage';
@@ -17,6 +18,7 @@ import {
   AddLoanModal, 
   AddRepaymentModal 
 } from '../components/TransactionModals';
+import TransactionImportModal from '../components/TransactionImportModal';
 
 export default function DashboardScreen() {
   const { 
@@ -43,6 +45,7 @@ export default function DashboardScreen() {
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [loanOpen, setLoanOpen] = useState(false);
   const [repayOpen, setRepayOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   // Time based greeting
   const getGreeting = () => {
@@ -329,12 +332,23 @@ export default function DashboardScreen() {
               <h2 className="font-serif font-bold text-base text-[#2D2825]">
                 {t.recentTransactions}
               </h2>
-              <button
-                onClick={() => setActiveTab('sales')}
-                className="text-xs font-bold text-[#566E54] hover:underline"
-              >
-                {t.viewAll}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setImportModalOpen(true)}
+                  className="px-2.5 py-1 rounded-full bg-[#E9EFE8] hover:bg-[#D9E5D8] text-[#314030] text-[11px] font-semibold flex items-center gap-1.5 transition border border-[#C6D8C4] shadow-soft"
+                  title="Import UPI statement or sync payment transactions"
+                >
+                  <ArrowDownToLine className="w-3.5 h-3.5 text-[#566E54]" />
+                  <span>Import / Sync</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('sales')}
+                  className="text-xs font-bold text-[#566E54] hover:underline"
+                >
+                  {t.viewAll}
+                </button>
+              </div>
             </div>
 
             {loadingFinancials ? (
@@ -411,6 +425,7 @@ export default function DashboardScreen() {
       <AddExpenseModal isOpen={expenseOpen} onClose={() => setExpenseOpen(false)} />
       <AddLoanModal isOpen={loanOpen} onClose={() => setLoanOpen(false)} />
       <AddRepaymentModal isOpen={repayOpen} onClose={() => setRepayOpen(false)} />
+      <TransactionImportModal isOpen={importModalOpen} onClose={() => setImportModalOpen(false)} />
     </div>
   );
 }

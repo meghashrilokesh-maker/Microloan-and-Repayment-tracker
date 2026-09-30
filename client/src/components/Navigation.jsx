@@ -39,13 +39,15 @@ export function TopHeader() {
           onClick={() => setActiveTab('home')}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <div className="w-10 h-10 rounded-2xl bg-[#6B8569] text-white flex items-center justify-center shadow-pastel font-serif font-bold text-lg group-hover:scale-102 transition">
-            TS
-          </div>
+          <img 
+            src="/images/vridhi-logo.jpg" 
+            alt="Vridhi Logo" 
+            className="w-10 h-10 rounded-2xl object-cover shadow-pastel border border-[#D5CDC1] group-hover:scale-102 transition" 
+          />
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-serif font-bold text-lg sm:text-xl text-[#2D2825] tracking-tight leading-none">
-                TrackShack
+                Vridhi
               </h1>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E9EFE8] text-[#425541] border border-[#D3DFD2]">
                 {profile.businessType || 'Vendor'}
