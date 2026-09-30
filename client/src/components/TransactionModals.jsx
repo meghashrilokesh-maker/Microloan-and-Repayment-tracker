@@ -981,7 +981,7 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
   };
 
   const handleConfirmedPayment = async () => {
-    if (isSubmitting) return;
+    if (isSubmitting || !currentLoan?.id) return;
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -994,17 +994,18 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
         note
       });
 
-      if (res && res.success) {
-        showToast(`✓ ₹${repayAmountNum.toLocaleString()} repayment recorded successfully!`);
+      if (res && (res.success || res.id || res.remainingAmount !== undefined)) {
         handleClose();
       } else {
         const msg = res?.error || 'Failed to record repayment';
         setSubmitError(msg);
+        showToast(`⚠ ${msg}`);
       }
     } catch (err) {
       console.error('Repayment confirmation failed:', err);
       const msg = err.message || 'Failed to record repayment';
       setSubmitError(msg);
+      showToast(`⚠ ${msg}`);
     } finally {
       setIsSubmitting(false);
     }

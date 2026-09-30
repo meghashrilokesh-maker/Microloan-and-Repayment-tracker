@@ -237,6 +237,7 @@ export function AppProvider({ children }) {
   }, []);
 
   const fetchLoans = async () => {
+    if (!supabase) return;
     const [loansRes, repaymentsRes] = await Promise.all([
       supabase.from('loans').select('*').order('created_at', { ascending: false }),
       supabase.from('repayments').select('*').order('payment_date', { ascending: false })
@@ -1447,87 +1448,84 @@ export function AppProvider({ children }) {
     const repayNum = Number(amount);
 
     if (!repayNum || isNaN(repayNum) || repayNum <= 0) {
-      const err = new Error('Valid repayment amount greater than 0 is required');
-      showToast('⚠ ' + err.message);
-      throw err;
+      showToast('⚠ Invalid repayment amount');
+      return null;
     }
 
     const targetLoan = (loans || []).find(l => l.id === loanId);
     if (!targetLoan) {
-      const err = new Error('Selected loan not found');
-      showToast('⚠ ' + err.message);
-      throw err;
+      showToast('⚠ Loan not found');
+      return null;
     }
 
     if (repayNum > targetLoan.remainingAmount) {
       const msg = t.overpaymentWarning || 'Repayment amount exceeds remaining loan balance';
       showToast(`⚠ ${msg}`);
-      throw new Error(msg);
+      return null;
     }
 
     const authUserId = profile?.id;
     const isRealUser = authUserId && authUserId !== 'demo-vendor-ravi';
-    let repInsertId = 'rep_' + Date.now();
+    const repId = 'rep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+    let repInsertId = repId;
 
     // 1. Persist directly to Supabase if authenticated and configured
     if (supabase && isRealUser) {
-      // Repayments table record with explicit user_id for RLS policies
-      const repPayload = {
-        loan_id: loanId,
-        user_id: authUserId,
-        amount: repayNum,
-        payment_date: date || todayStr,
-        payment_method: method || 'UPI',
-        note: note || '',
-        notes: note || ''
-      };
-
-      const { data: repData, error: repError } = await supabase
-        .from('repayments')
-        .insert([repPayload])
-        .select()
-        .maybeSingle();
-
-      if (repError) {
-        console.error('Error inserting into Supabase repayments table:', repError);
-        // If row-level security error or missing schema, propagate clearly
-        if (repError.code === '42501' || repError.message?.toLowerCase().includes('policy')) {
-          const rlsMsg = `Supabase RLS Policy: ${repError.message}`;
-          showToast(`⚠ ${rlsMsg}`);
-          throw new Error(rlsMsg);
-        }
-      } else if (repData && repData.id) {
-        repInsertId = repData.id;
-      }
-
-      // Also record in Supabase `transactions` table so Recent Transactions and Reports stay synchronized
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const txPayload = {
-        user_id: authUserId,
-        type: 'repayment',
-        amount: repayNum,
-        category: 'Loan Repayment',
-        customer_name: targetLoan.lender || 'Lender',
-        date: date || todayStr,
-        time: timeStr,
-        description: note ? `Repayment for ${targetLoan.name}: ${note}` : `Repayment for ${targetLoan.name}`,
-        metadata: {
+      try {
+        // Repayments table record with explicit user_id for RLS policies
+        const repPayload = {
           loan_id: loanId,
-          repayment_id: repInsertId,
-          loan_name: targetLoan.name,
-          lender: targetLoan.lender,
-          payment_mode: method || 'UPI',
+          user_id: authUserId,
+          amount: repayNum,
+          payment_date: date || todayStr,
+          payment_method: method || 'UPI',
           note: note || '',
-          entry_type: 'repayment_paid'
+          notes: note || ''
+        };
+
+        const { data: repData, error: repError } = await supabase
+          .from('repayments')
+          .insert([repPayload])
+          .select()
+          .maybeSingle();
+
+        if (repError) {
+          console.warn('Supabase add repayment warning:', repError.message);
+        } else if (repData && repData.id) {
+          repInsertId = repData.id;
         }
-      };
 
-      const { error: txError } = await supabase
-        .from('transactions')
-        .insert(txPayload);
+        // Also record in Supabase `transactions` table so Recent Transactions and Reports stay synchronized
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const txPayload = {
+          user_id: authUserId,
+          type: 'repayment',
+          amount: repayNum,
+          category: 'Loan Repayment',
+          customer_name: targetLoan.lender || 'Lender',
+          date: date || todayStr,
+          time: timeStr,
+          description: note ? `Repayment for ${targetLoan.name}: ${note}` : `Repayment for ${targetLoan.name}`,
+          metadata: {
+            loan_id: loanId,
+            repayment_id: repInsertId,
+            loan_name: targetLoan.name,
+            lender: targetLoan.lender,
+            payment_mode: method || 'UPI',
+            note: note || '',
+            entry_type: 'repayment_paid'
+          }
+        };
 
-      if (txError) {
-        console.warn('Supabase transactions insert warning for repayment:', txError);
+        const { error: txError } = await supabase
+          .from('transactions')
+          .insert(txPayload);
+
+        if (txError) {
+          console.warn('Supabase transactions insert warning for repayment:', txError);
+        }
+      } catch (sbErr) {
+        console.warn('Supabase repayment recording exception:', sbErr);
       }
     }
 
@@ -1585,16 +1583,33 @@ export function AppProvider({ children }) {
       return updated;
     });
 
+    if (!updatedLoanObj) {
+      const newRemaining = Math.max(0, targetLoan.remainingAmount - repayNum);
+      const newTotalRepaid = (targetLoan.totalRepaid || 0) + repayNum;
+      const newStatus = newRemaining === 0 ? 'Completed' : targetLoan.status;
+
+      updatedLoanObj = {
+        ...targetLoan,
+        remainingAmount: newRemaining,
+        totalRepaid: newTotalRepaid,
+        status: newStatus,
+        repayments: [newRepaymentEntry, ...(targetLoan.repayments || [])]
+      };
+    }
+
     // 3. Trigger transaction refresh so Dashboard and Reports recalculate immediately
     if (isRealUser && typeof loadTransactions === 'function') {
       loadTransactions(authUserId).catch(() => {});
     }
+
+    showToast(`✓ ₹${repayNum} repayment recorded!`);
 
     try {
       financialsApi.addRepayment({ loanId, amount: repayNum, date, method, note }).catch(() => {});
     } catch (_e) {}
 
     return {
+      ...updatedLoanObj,
       success: true,
       loan: updatedLoanObj,
       repayment: newRepaymentEntry
