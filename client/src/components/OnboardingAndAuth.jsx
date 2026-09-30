@@ -656,12 +656,7 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
     }
   };
 
-  // Demo Fast-Fill
-  const handleFillDemoVendor = () => {
-    setLoginIdentifier('9876543210');
-    setLoginPassword('vendor123');
-    showToast('Demo Vendor credentials filled!');
-  };
+
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] flex flex-col justify-center items-center p-4 relative overflow-hidden">
@@ -814,19 +809,6 @@ export function AuthScreen({ onLoginSuccess, onBackToLanding, initialMode = 'log
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
-
-            {/* Demo Fast Login Banner */}
-            <div 
-              onClick={handleFillDemoVendor}
-              className="pt-3 border-t border-[#F3EDE3] text-center space-y-1 cursor-pointer hover:bg-[#FAF7F2] p-2 rounded-2xl transition group"
-            >
-              <p className="text-[11px] text-[#7C746F] group-hover:text-[#566E54]">
-                Tap here to pre-fill <strong>Ravi Kumar</strong> (Demo Vendor: 9876543210).
-              </p>
-              <p className="text-[10px] text-[#9A938E]">
-                Instant exploration of daily sales, expenses & loans.
-              </p>
-            </div>
           </div>
         ) : (
           /* ========================================================================= */
