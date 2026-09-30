@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -8,9 +8,114 @@ import {
   Sparkles, 
   Calendar, 
   CreditCard, 
-  ShieldAlert 
+  ShieldAlert,
+  AlertCircle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { 
+  isSpeechRecognitionSupported, 
+  startSpeechRecognition, 
+  stopSpeechRecognition, 
+  abortSpeechRecognition 
+} from '../utils/speechRecognition';
+
+// Word-to-number mapping for Indian and English spoken amounts
+const WORD_NUMBERS = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+  ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16,
+  seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50,
+  sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100, thousand: 1000,
+  lakh: 100000, lakhs: 100000, lac: 100000, lacs: 100000, k: 1000
+};
+
+/**
+ * Intelligent parser for Indian vendor sales speech.
+ * Extracts: numeric amount (digits or spoken words), category, customer/party name, and note.
+ */
+export function parseSalesSpeech(transcript) {
+  if (!transcript || typeof transcript !== 'string') return null;
+  const raw = transcript.trim();
+  const lower = raw.toLowerCase();
+
+  // 1. Amount extraction
+  let detectedAmount = null;
+
+  // Pattern A: Direct digits (e.g. 500, ₹2000, 150.50, 400 rs, rs. 1200, 2,500)
+  const digitRegex = /(?:₹|rs\.?|rupees?|inr)?\s*(\d+(?:,\d+)*(?:\.\d+)?)\s*(?:₹|rs\.?|rupees?|inr)?/i;
+  const matchDigits = lower.match(digitRegex);
+  if (matchDigits && matchDigits[1]) {
+    const val = parseFloat(matchDigits[1].replace(/,/g, ''));
+    if (!isNaN(val) && val > 0) {
+      detectedAmount = val;
+    }
+  }
+
+  // Pattern B: Spoken words into numbers (e.g. "five hundred", "two thousand", "three hundred fifty")
+  if (!detectedAmount) {
+    const tokens = lower.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+    let current = 0;
+    let total = 0;
+    let hasNumberWords = false;
+
+    for (const token of tokens) {
+      if (WORD_NUMBERS[token] !== undefined) {
+        hasNumberWords = true;
+        const val = WORD_NUMBERS[token];
+        if (val === 100) {
+          current = (current === 0 ? 1 : current) * 100;
+        } else if (val === 1000 || val === 100000) {
+          current = (current === 0 ? 1 : current) * val;
+          total += current;
+          current = 0;
+        } else {
+          current += val;
+        }
+      }
+    }
+    total += current;
+    if (hasNumberWords && total > 0) {
+      detectedAmount = total;
+    }
+  }
+
+  // 2. Category extraction
+  let detectedCategory = 'Vegetables';
+  if (/vegetable|sabzi|sabji|aloo|pyaz|tomato|potato|onion|spinach|palak|bhindi|gobi|mirchi/i.test(lower)) {
+    detectedCategory = 'Vegetables';
+  } else if (/fruit|fal|apple|banana|mango|orange|kela|seb|grapes|papaya|chiku|watermelon/i.test(lower)) {
+    detectedCategory = 'Fruits';
+  } else if (/street\s*food|food|snack|chai|tea|samosa|chaat|coffee|dosa|idli|vada|pakoda|kachori|pani\s*puri/i.test(lower)) {
+    detectedCategory = 'Street Food';
+  } else if (/grocery|kirana|ration|dal|rice|oil|sugar|atta|wheat|flour|soap|milk|curd|doodh/i.test(lower)) {
+    detectedCategory = 'Grocery';
+  } else if (/cloth|kapda|shirt|pant|saree|suit|dress|towel|fabric|kurta/i.test(lower)) {
+    detectedCategory = 'Clothing';
+  } else if (/other|flower|phool|garland|pooja|puja|plastic|bag|stationery/i.test(lower)) {
+    detectedCategory = 'Other';
+  }
+
+  // 3. Customer name extraction
+  let detectedCustomer = '';
+  const partyMatch = lower.match(/(?:to|from|for|customer|bhai|ji|seth)\s+([a-z]+)/i);
+  if (partyMatch && partyMatch[1]) {
+    const candidate = partyMatch[1];
+    const excluded = [
+      'rupee', 'rupees', 'rs', 'cash', 'upi', 'sale', 'today', 'fresh', 'my', 'the',
+      'vegetable', 'fruit', 'five', 'hundred', 'thousand', 'kilo', 'kg', 'packet', 'gram'
+    ];
+    if (!excluded.includes(candidate.toLowerCase()) && candidate.length >= 3) {
+      detectedCustomer = candidate.charAt(0).toUpperCase() + candidate.slice(1);
+    }
+  }
+
+  return {
+    amount: detectedAmount ? String(detectedAmount) : '',
+    category: detectedCategory,
+    customerName: detectedCustomer,
+    spokenText: `"${raw}"`,
+    note: raw
+  };
+}
 
 export function AddSaleModal({ isOpen, onClose, initialValues = null, onSaved = null }) {
   const { t, addSale } = useApp();
@@ -45,9 +150,25 @@ export function AddSaleModal({ isOpen, onClose, initialValues = null, onSaved = 
     }
   }, [isOpen, initialValues]);
 
-  // Voice recording simulation states
+  // Real voice recognition states
   const [isListening, setIsListening] = useState(false);
-  const [voiceDraft, setVoiceDraft] = useState(null); // { amount, category, spokenText }
+  const [voiceDraft, setVoiceDraft] = useState(null); // { amount, category, customerName, spokenText, note }
+  const [voiceError, setVoiceError] = useState('');
+  const recognitionRef = useRef(null);
+  const voiceErrorTimerRef = useRef(null);
+
+  // Component unmount / modal close cleanup
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        abortSpeechRecognition(recognitionRef.current);
+        recognitionRef.current = null;
+      }
+      if (voiceErrorTimerRef.current) {
+        clearTimeout(voiceErrorTimerRef.current);
+      }
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -62,24 +183,77 @@ export function AddSaleModal({ isOpen, onClose, initialValues = null, onSaved = 
     { id: 'Other', label: t.catOther },
   ];
 
-  const handleVoiceSimulation = () => {
-    setIsListening(true);
-    // Simulate speech recognition parsing
-    setTimeout(() => {
+  // Toggle real voice listening session
+  const handleToggleVoice = () => {
+    // If currently listening, tap stops recognition
+    if (isListening) {
+      if (recognitionRef.current) {
+        stopSpeechRecognition(recognitionRef.current);
+        recognitionRef.current = null;
+      }
       setIsListening(false);
-      setVoiceDraft({
-        amount: 2000,
-        category: 'Vegetables',
-        spokenText: '"Today\'s sale is 2000 rupees for fresh vegetables"'
-      });
-    }, 1800);
+      return;
+    }
+
+    setVoiceError('');
+
+    // Check browser Web Speech API availability
+    if (!isSpeechRecognitionSupported()) {
+      setVoiceError(
+        'Speech recognition is not supported in this browser. Please use Chrome, Edge, or enter details manually below.'
+      );
+      if (voiceErrorTimerRef.current) clearTimeout(voiceErrorTimerRef.current);
+      voiceErrorTimerRef.current = setTimeout(() => setVoiceError(''), 6000);
+      return;
+    }
+
+    // Launch speech recognition session (en-IN)
+    const instance = startSpeechRecognition({
+      lang: 'en-IN',
+      onStart: () => {
+        setIsListening(true);
+      },
+      onResult: (transcript) => {
+        setIsListening(false);
+        recognitionRef.current = null;
+        if (!transcript || !transcript.trim()) return;
+
+        // Parse transcript into sales draft
+        const draft = parseSalesSpeech(transcript);
+        if (draft) {
+          setVoiceDraft(draft);
+        }
+      },
+      onError: (err) => {
+        setIsListening(false);
+        recognitionRef.current = null;
+        setVoiceError(err.message || 'Speech recognition error. Please try again.');
+        if (voiceErrorTimerRef.current) clearTimeout(voiceErrorTimerRef.current);
+        voiceErrorTimerRef.current = setTimeout(() => setVoiceError(''), 5000);
+      },
+      onEnd: () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+      }
+    });
+
+    if (instance) {
+      recognitionRef.current = instance;
+    }
   };
 
   const applyVoiceDraft = () => {
     if (voiceDraft) {
-      setAmount(String(voiceDraft.amount));
-      setCategory(voiceDraft.category);
-      setNote('Recorded via voice assistant');
+      if (voiceDraft.amount) {
+        setAmount(String(voiceDraft.amount));
+      }
+      if (voiceDraft.category) {
+        setCategory(voiceDraft.category);
+      }
+      if (voiceDraft.customerName) {
+        setCustomerName(voiceDraft.customerName);
+      }
+      setNote(voiceDraft.note || 'Recorded via voice assistant');
       setVoiceDraft(null);
     }
   };
@@ -125,41 +299,80 @@ export function AddSaleModal({ isOpen, onClose, initialValues = null, onSaved = 
         </div>
 
         {/* Voice Entry Button Card */}
-        <div className="mt-4 p-3.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={handleVoiceSimulation}
-              disabled={isListening}
-              className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-soft transition active:scale-95 touch-press ${
-                isListening ? 'bg-[#BF745F] animate-pulse' : 'bg-[#566E54] hover:bg-[#425541]'
-              }`}
-            >
-              <Mic className="w-5 h-5" />
-            </button>
-            <div>
-              <span className="text-xs font-bold text-[#2D2825] block">
-                {isListening ? t.listening : t.speakSale}
-              </span>
-              <span className="text-[10px] text-[#7C746F]">
-                {t.speakPrompt}
-              </span>
+        <div className="mt-4 p-3.5 bg-[#FAF7F2] border border-[#EBE3D7] rounded-2xl space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleToggleVoice}
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-soft transition active:scale-95 touch-press ${
+                  isListening 
+                    ? 'bg-[#BF745F] animate-pulse ring-4 ring-[#F0D7CD]' 
+                    : 'bg-[#566E54] hover:bg-[#425541]'
+                }`}
+                title={isListening ? 'Tap to stop listening' : 'Tap to speak sale details'}
+              >
+                <Mic className={`w-5 h-5 ${isListening ? 'animate-bounce' : ''}`} />
+              </button>
+              <div>
+                <span className="text-xs font-bold text-[#2D2825] block">
+                  {isListening ? 'Listening... Speak now' : (t.speakSale || 'Speak to Record Sale')}
+                </span>
+                <span className="text-[10px] text-[#7C746F]">
+                  {isListening ? 'Say amount, category, or customer (e.g. "500 rupees vegetables")' : (t.speakPrompt || 'e.g. "Today\'s sale 500 rupees vegetables to Ramesh"')}
+                </span>
+              </div>
             </div>
+
+            {isListening && (
+              <span className="px-2 py-0.5 rounded-full bg-[#FAEEF0] text-[#8A3846] border border-[#F4DBDF] text-[10px] font-bold animate-pulse">
+                REC
+              </span>
+            )}
           </div>
+
+          {/* Voice Error Notice */}
+          {voiceError && (
+            <div className="p-2.5 rounded-xl bg-[#FAEEF0] border border-[#F4DBDF] text-xs font-semibold text-[#8A3846] flex items-center gap-2 animate-in fade-in">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{voiceError}</span>
+            </div>
+          )}
         </div>
 
-        {/* Voice confirmation dialog */}
+        {/* Voice confirmation dialog: Shows transcript and extracted fields for user review */}
         {voiceDraft && (
-          <div className="mt-3 p-3.5 bg-[#FBF5F0] border border-[#F0D7CD] rounded-2xl animate-in fade-in">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#874937]">
-              <Sparkles className="w-4 h-4 text-[#BF745F]" />
-              <span>{t.confirmVoiceTitle}</span>
+          <div className="mt-3 p-3.5 bg-[#FBF5F0] border border-[#F0D7CD] rounded-2xl animate-in fade-in space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#874937]">
+                <Sparkles className="w-4 h-4 text-[#BF745F]" />
+                <span>Detected Voice Input</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVoiceDraft(null)}
+                className="text-xs text-[#7C746F] hover:text-[#2D2825]"
+              >
+                ✕
+              </button>
             </div>
-            <p className="text-xs text-[#605955] mt-1 italic">{voiceDraft.spokenText}</p>
-            <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-[#F0D7CD] text-xs">
-              <span className="font-bold text-[#566E54]">
-                Detected: ₹{voiceDraft.amount} ({voiceDraft.category})
-              </span>
+
+            <p className="text-xs text-[#605955] italic bg-white/80 p-2 rounded-xl border border-[#EBE3D7]">
+              {voiceDraft.spokenText}
+            </p>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#F0D7CD] text-xs">
+              <div className="space-y-0.5">
+                <span className="font-bold text-[#566E54] block">
+                  Amount: {voiceDraft.amount ? `₹${voiceDraft.amount}` : 'Not detected'} • {voiceDraft.category}
+                </span>
+                {voiceDraft.customerName && (
+                  <span className="text-[11px] text-[#7C746F] block">
+                    Customer: <strong>{voiceDraft.customerName}</strong>
+                  </span>
+                )}
+              </div>
+
               <div className="flex gap-1.5">
                 <button
                   type="button"
@@ -171,7 +384,7 @@ export function AddSaleModal({ isOpen, onClose, initialValues = null, onSaved = 
                 <button
                   type="button"
                   onClick={applyVoiceDraft}
-                  className="px-3 py-1 rounded-full text-[11px] bg-[#566E54] hover:bg-[#425541] text-white font-bold shadow-pastel"
+                  className="px-3.5 py-1 rounded-full text-[11px] bg-[#566E54] hover:bg-[#425541] text-white font-bold shadow-pastel touch-press"
                 >
                   Confirm & Fill
                 </button>
@@ -733,11 +946,15 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [method, setMethod] = useState('UPI');
   const [note, setNote] = useState('');
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   const handleClose = () => {
     setAmount('');
+    setNote('');
     setShowConfirm(false);
+    setIsSubmitting(false);
+    setSubmitError(null);
     onClose();
   };
 
@@ -751,7 +968,11 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
 
   const handlePreSubmit = (e) => {
     e.preventDefault();
-    if (!repayAmountNum || repayAmountNum <= 0) return;
+    setSubmitError(null);
+    if (!repayAmountNum || repayAmountNum <= 0) {
+      showToast('⚠ Please enter a valid repayment amount');
+      return;
+    }
     if (isOverpaying) {
       showToast(`⚠ ${t.overpaymentWarning}`);
       return;
@@ -760,17 +981,32 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
   };
 
   const handleConfirmedPayment = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+
     try {
-      await addRepayment({
+      const res = await addRepayment({
         loanId: currentLoan.id,
         amount: repayAmountNum,
         date,
         method,
         note
       });
-      handleClose();
-    } catch (_err) {
-      // Toast already shown in context
+
+      if (res && res.success) {
+        showToast(`✓ ₹${repayAmountNum.toLocaleString()} repayment recorded successfully!`);
+        handleClose();
+      } else {
+        const msg = res?.error || 'Failed to record repayment';
+        setSubmitError(msg);
+      }
+    } catch (err) {
+      console.error('Repayment confirmation failed:', err);
+      const msg = err.message || 'Failed to record repayment';
+      setSubmitError(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -827,20 +1063,36 @@ export function AddRepaymentModal({ isOpen, onClose, defaultLoanId = null }) {
               </div>
             </div>
 
+            {submitError && (
+              <div className="p-3 bg-[#FAEEF0] border border-[#F4DBDF] rounded-2xl text-xs text-[#8A3846] font-medium text-left flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-[#8A3846] shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{submitError}</span>
+              </div>
+            )}
+
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 py-3 rounded-full border border-[#EBE3D7] text-xs font-semibold text-[#7C746F] hover:bg-[#FAF7F2] transition"
+                className="flex-1 py-3 rounded-full border border-[#EBE3D7] text-xs font-semibold text-[#7C746F] hover:bg-[#FAF7F2] transition disabled:opacity-50"
               >
                 Go Back
               </button>
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={handleConfirmedPayment}
-                className="flex-1 py-3 rounded-full bg-[#566E54] hover:bg-[#425541] text-xs font-bold text-white shadow-pastel transition"
+                className="flex-1 py-3 rounded-full bg-[#566E54] hover:bg-[#425541] disabled:opacity-60 text-xs font-bold text-white shadow-pastel transition flex items-center justify-center gap-2"
               >
-                Confirm & Record
+                {isSubmitting ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Recording...</span>
+                  </>
+                ) : (
+                  <span>Confirm & Record</span>
+                )}
               </button>
             </div>
           </div>

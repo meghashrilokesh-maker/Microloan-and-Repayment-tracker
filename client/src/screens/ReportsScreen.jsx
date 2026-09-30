@@ -52,10 +52,10 @@ export default function ReportsScreen() {
     loadTransactions
   } = useApp();
 
-  // Active party section: 'customers' | 'suppliers' | 'overview'
-  const [activeSection, setActiveSection] = useState('customers');
+  // Active report section: 'sales' | 'expenses' | 'customers' | 'suppliers' | 'overview'
+  const [activeSection, setActiveSection] = useState('sales');
 
-  // Party search query (Search customer name or supplier name)
+  // Search query (Search item name, customer, supplier, or note)
   const [searchQuery, setSearchQuery] = useState('');
 
   // Time filter state: 'today' | 'week' | 'month' | 'last_month' | 'custom'
@@ -236,7 +236,15 @@ export default function ReportsScreen() {
     return combined;
   }, [cloudTxList, sales, expenses]);
 
-  // Overall Party counts for top tab badges
+  // Section counts for top tab badges
+  const totalSalesCount = useMemo(() => {
+    return allTransactions.filter(t => t.type === 'sale').length;
+  }, [allTransactions]);
+
+  const totalExpenseCount = useMemo(() => {
+    return allTransactions.filter(t => t.type === 'expense').length;
+  }, [allTransactions]);
+
   const totalCustomerCount = useMemo(() => {
     return allTransactions.filter(t => t.party_type === 'customer').length;
   }, [allTransactions]);
@@ -290,9 +298,16 @@ export default function ReportsScreen() {
     });
   }, [allTransactions, dateRangeBounds]);
 
-  // Strict Party Isolation:
-  // Customers NEVER appear in Suppliers. Suppliers NEVER appear in Customers.
+  // Strict Section Isolation:
+  // Sales only shows sales. Expenses only shows expenses.
+  // Customers only shows customer party. Suppliers only shows supplier party.
   const sectionTransactions = useMemo(() => {
+    if (activeSection === 'sales') {
+      return dateFilteredTransactions.filter(tx => tx.type === 'sale');
+    }
+    if (activeSection === 'expenses') {
+      return dateFilteredTransactions.filter(tx => tx.type === 'expense');
+    }
     if (activeSection === 'customers') {
       return dateFilteredTransactions.filter(tx => tx.party_type === 'customer');
     }
@@ -314,7 +329,80 @@ export default function ReportsScreen() {
     });
   }, [sectionTransactions, searchQuery]);
 
-  // 1. CUSTOMER SECTION CALCULATIONS
+  // 1A. SALES SECTION CALCULATIONS (Strictly Sales Data Only)
+  const salesMetrics = useMemo(() => {
+    const txs = activeSection === 'sales' ? displayedTransactions : dateFilteredTransactions.filter(t => t.type === 'sale');
+
+    let totalSales = 0;
+    let cashSales = 0;
+    let upiSales = 0;
+
+    txs.forEach(t => {
+      const amt = Number(t.amount || 0);
+      totalSales += amt;
+      const mode = (t.payment_mode || '').toUpperCase();
+      if (mode === 'CASH' || t.source === 'Cash') {
+        cashSales += amt;
+      } else {
+        upiSales += amt;
+      }
+    });
+
+    const count = txs.length;
+    const avgTicket = count > 0 ? Math.round(totalSales / count) : 0;
+
+    return {
+      total: totalSales,
+      cash: cashSales,
+      upi: upiSales,
+      count,
+      avgTicket
+    };
+  }, [activeSection, displayedTransactions, dateFilteredTransactions]);
+
+  // 1B. EXPENSES SECTION CALCULATIONS (Strictly Expenses Data Only)
+  const expenseMetrics = useMemo(() => {
+    const txs = activeSection === 'expenses' ? displayedTransactions : dateFilteredTransactions.filter(t => t.type === 'expense');
+
+    let totalExpenses = 0;
+    let stockPurchases = 0;
+    let operational = 0;
+    const catMap = {};
+
+    txs.forEach(t => {
+      const amt = Number(t.amount || 0);
+      totalExpenses += amt;
+      const cat = (t.category || 'Stock / Purchases');
+      catMap[cat] = (catMap[cat] || 0) + amt;
+
+      const lowerCat = cat.toLowerCase();
+      if (lowerCat.includes('stock') || lowerCat.includes('purchase') || lowerCat.includes('inventory') || lowerCat.includes('raw') || lowerCat.includes('mandi')) {
+        stockPurchases += amt;
+      } else {
+        operational += amt;
+      }
+    });
+
+    const count = txs.length;
+    let topCategory = 'General Costs';
+    let topCatAmt = 0;
+    Object.entries(catMap).forEach(([cat, amt]) => {
+      if (amt > topCatAmt) {
+        topCatAmt = amt;
+        topCategory = cat;
+      }
+    });
+
+    return {
+      total: totalExpenses,
+      stockPurchases,
+      operational,
+      count,
+      topCategory
+    };
+  }, [activeSection, displayedTransactions, dateFilteredTransactions]);
+
+  // 1C. CUSTOMER SECTION CALCULATIONS
   // Customer gives clear KhataBook financial logic:
   // - Sales / Credit Given
   // - Money Received
@@ -487,7 +575,12 @@ export default function ReportsScreen() {
   const categoryBreakdown = useMemo(() => {
     const map = {};
     displayedTransactions.forEach(t => {
-      const cat = t.category || (activeSection === 'customers' ? 'General Sales' : 'General Costs');
+      const defaultCat = 
+        activeSection === 'sales' ? 'Vegetables' :
+        activeSection === 'expenses' ? 'Stock / Purchases' :
+        activeSection === 'customers' ? 'General Sales' :
+        'General Costs';
+      const cat = t.category || defaultCat;
       map[cat] = (map[cat] || 0) + t.amount;
     });
 
@@ -526,7 +619,22 @@ export default function ReportsScreen() {
 
       const dayTxs = displayedTransactions.filter(t => t.date === dateStr);
 
-      if (activeSection === 'customers') {
+      if (activeSection === 'sales') {
+        dayTxs.forEach(t => {
+          const mode = (t.payment_mode || '').toUpperCase();
+          if (mode === 'CASH' || t.source === 'Cash') bar1Val += t.amount;
+          else bar2Val += t.amount; // Digital / UPI
+        });
+      } else if (activeSection === 'expenses') {
+        dayTxs.forEach(t => {
+          const cat = (t.category || '').toLowerCase();
+          if (cat.includes('stock') || cat.includes('purchase') || cat.includes('inventory') || cat.includes('raw') || cat.includes('mandi')) {
+            bar1Val += t.amount;
+          } else {
+            bar2Val += t.amount;
+          }
+        });
+      } else if (activeSection === 'customers') {
         dayTxs.forEach(t => {
           if (t.entry_type === 'given') bar1Val += t.amount;
           else if (t.entry_type === 'received') bar2Val += t.amount;
@@ -621,21 +729,59 @@ export default function ReportsScreen() {
 
       {/* 2. CUSTOMER & SUPPLIER SECTION TABS + SEARCH & FILTERS TOOLBAR */}
       <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#EBE3D7] shadow-soft space-y-4">
-        {/* Top Row: CUSTOMERS vs SUPPLIERS Segmented Controls */}
+        {/* Top Row: Segmented Controls with Sales, Expenses, Customers, Suppliers & Overview */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-[#F3EDE3]">
           {/* Section Tabs with Live Counts */}
-          <div className="inline-flex p-1.5 bg-[#FAF7F2] rounded-2xl border border-[#EBE3D7] self-start sm:self-auto">
+          <div className="inline-flex flex-wrap p-1.5 bg-[#FAF7F2] rounded-2xl border border-[#EBE3D7] self-start sm:self-auto gap-1">
+            {/* Sales Tab */}
+            <button
+              id="tab-sales-report"
+              onClick={() => setActiveSection('sales')}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition touch-press ${
+                activeSection === 'sales'
+                  ? 'bg-[#566E54] text-white shadow-soft scale-102'
+                  : 'text-[#7C746F] hover:text-[#2D2825] hover:bg-[#F3EDE3]'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>Sales</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                activeSection === 'sales' ? 'bg-white/25 text-white' : 'bg-[#EBE3D7] text-[#605955]'
+              }`}>
+                {totalSalesCount}
+              </span>
+            </button>
+
+            {/* Expenses Tab */}
+            <button
+              id="tab-expenses-report"
+              onClick={() => setActiveSection('expenses')}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition touch-press ${
+                activeSection === 'expenses'
+                  ? 'bg-[#566E54] text-white shadow-soft scale-102'
+                  : 'text-[#7C746F] hover:text-[#2D2825] hover:bg-[#F3EDE3]'
+              }`}
+            >
+              <TrendingDown className="w-3.5 h-3.5" />
+              <span>Expenses</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                activeSection === 'expenses' ? 'bg-white/25 text-white' : 'bg-[#EBE3D7] text-[#605955]'
+              }`}>
+                {totalExpenseCount}
+              </span>
+            </button>
+
             {/* Customers Tab */}
             <button
               id="tab-customers-report"
               onClick={() => setActiveSection('customers')}
-              className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition touch-press ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition touch-press ${
                 activeSection === 'customers'
                   ? 'bg-[#566E54] text-white shadow-soft scale-102'
                   : 'text-[#7C746F] hover:text-[#2D2825] hover:bg-[#F3EDE3]'
               }`}
             >
-              <Users className="w-4 h-4" />
+              <Users className="w-3.5 h-3.5" />
               <span>Customers</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                 activeSection === 'customers' ? 'bg-white/25 text-white' : 'bg-[#EBE3D7] text-[#605955]'
@@ -648,13 +794,13 @@ export default function ReportsScreen() {
             <button
               id="tab-suppliers-report"
               onClick={() => setActiveSection('suppliers')}
-              className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition touch-press ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition touch-press ${
                 activeSection === 'suppliers'
                   ? 'bg-[#566E54] text-white shadow-soft scale-102'
                   : 'text-[#7C746F] hover:text-[#2D2825] hover:bg-[#F3EDE3]'
               }`}
             >
-              <Store className="w-4 h-4" />
+              <Store className="w-3.5 h-3.5" />
               <span>Suppliers</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                 activeSection === 'suppliers' ? 'bg-white/25 text-white' : 'bg-[#EBE3D7] text-[#605955]'
@@ -667,7 +813,7 @@ export default function ReportsScreen() {
             <button
               id="tab-overview-report"
               onClick={() => setActiveSection('overview')}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition touch-press ${
+              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition touch-press ${
                 activeSection === 'overview'
                   ? 'bg-[#566E54] text-white shadow-soft scale-102'
                   : 'text-[#7C746F] hover:text-[#2D2825] hover:bg-[#F3EDE3]'
@@ -686,7 +832,11 @@ export default function ReportsScreen() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={
-                activeSection === 'customers' 
+                activeSection === 'sales'
+                  ? 'Search sale item, customer or note...'
+                  : activeSection === 'expenses'
+                  ? 'Search expense item, supplier or note...'
+                  : activeSection === 'customers' 
                   ? 'Search customer name or note...' 
                   : activeSection === 'suppliers' 
                   ? 'Search supplier name or note...' 
@@ -778,7 +928,149 @@ export default function ReportsScreen() {
       </div>
 
       {/* 3. METRIC SUMMARY CARDS */}
-      {/* 3A. CUSTOMER VIEW SUMMARY CARDS */}
+      {/* 3A. SALES VIEW SUMMARY CARDS */}
+      {activeSection === 'sales' && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 animate-in fade-in">
+          {/* Card 1: Total Sales Revenue */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#D3DFD2] shadow-soft bg-[#F5F8F5]/70 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#566E54]">Total Sales</span>
+                <div className="w-7 h-7 rounded-full bg-[#E9EFE8] flex items-center justify-center text-[#566E54]">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <span className="font-serif font-bold text-xl sm:text-2xl text-[#2D2825] mt-2 block">
+                ₹{salesMetrics.total.toLocaleString()}
+              </span>
+            </div>
+            <p className="text-[10px] text-[#7C746F] font-medium mt-1">Total revenue collected from sales</p>
+          </div>
+
+          {/* Card 2: Cash Inflow */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#D3DFD2] shadow-soft bg-[#E9EFE8]/50 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#425541]">Cash Sales</span>
+                <div className="w-7 h-7 rounded-full bg-[#D3DFD2] flex items-center justify-center text-[#425541]">
+                  <Banknote className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <span className="font-serif font-bold text-xl sm:text-2xl text-[#314030] mt-2 block">
+                ₹{salesMetrics.cash.toLocaleString()}
+              </span>
+            </div>
+            <p className="text-[10px] text-[#566E54] font-medium mt-1">Direct physical cash collected</p>
+          </div>
+
+          {/* Card 3: Digital / UPI Inflow */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#E3DFEF] shadow-soft bg-[#F9F8FC]/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#554C78]">UPI & Digital</span>
+                <div className="w-7 h-7 rounded-full bg-[#F2F0F8] flex items-center justify-center text-[#554C78]">
+                  <Smartphone className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <span className="font-serif font-bold text-xl sm:text-2xl text-[#3F3760] mt-2 block">
+                ₹{salesMetrics.upi.toLocaleString()}
+              </span>
+            </div>
+            <p className="text-[10px] text-[#7C746F] font-medium mt-1">QR & bank UPI settlements</p>
+          </div>
+
+          {/* Card 4: Sales Activity & Avg Ticket */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#EBE3D7] shadow-soft bg-[#FAF7F2]/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#605955]">Sales Activity</span>
+                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#605955] border border-[#EBE3D7]">
+                  <Receipt className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <span className="font-serif font-bold text-xl sm:text-2xl text-[#2D2825] mt-2 block">
+                {salesMetrics.count}
+              </span>
+            </div>
+            <p className="text-[10px] text-[#7C746F] font-medium mt-1">
+              Average ticket: ₹{salesMetrics.avgTicket.toLocaleString()}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 3B. EXPENSES VIEW SUMMARY CARDS */}
+      {activeSection === 'expenses' && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 animate-in fade-in">
+          {/* Card 1: Total Expenses */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#F0D7CD] shadow-soft bg-[#FCF7F4]/70 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#BF745F]">Total Expenses</span>
+                <div className="w-7 h-7 rounded-full bg-[#F8ECE6] flex items-center justify-center text-[#BF745F]">
+                  <TrendingDown className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <span className="font-serif font-bold text-xl sm:text-2xl text-[#2D2825] mt-2 block">
+                ₹{expenseMetrics.total.toLocaleString()}
+              </span>
+            </div>
+            <p className="text-[10px] text-[#7C746F] font-medium mt-1">Total business cost & outflow</p>
+          </div>
+
+          {/* Card 2: Stock & Inventory Purchases */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#F0D7CD] shadow-soft bg-[#FAF7F2]/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#874937]">Stock Purchases</span>
+                <div className="w-7 h-7 rounded-full bg-[#F8ECE6] flex items-center justify-center text-[#874937]">
+                  <Store className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <span className="font-serif font-bold text-xl sm:text-2xl text-[#2D2825] mt-2 block">
+                ₹{expenseMetrics.stockPurchases.toLocaleString()}
+              </span>
+            </div>
+            <p className="text-[10px] text-[#874937] font-medium mt-1">Mandi stock, wholesale inventory</p>
+          </div>
+
+          {/* Card 3: Operational & Other Costs */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#EBE3D7] shadow-soft bg-[#FAF7F2]/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#605955]">Running Costs</span>
+                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#605955] border border-[#EBE3D7]">
+                  <Building2 className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <span className="font-serif font-bold text-xl sm:text-2xl text-[#2D2825] mt-2 block">
+                ₹{expenseMetrics.operational.toLocaleString()}
+              </span>
+            </div>
+            <p className="text-[10px] text-[#7C746F] font-medium mt-1">Transport, rent, electricity, bills</p>
+          </div>
+
+          {/* Card 4: Expense Records Activity */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#EBE3D7] shadow-soft bg-[#FAF7F2]/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#605955]">Expense Entries</span>
+                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#605955] border border-[#EBE3D7]">
+                  <Receipt className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <span className="font-serif font-bold text-xl sm:text-2xl text-[#2D2825] mt-2 block">
+                {expenseMetrics.count}
+              </span>
+            </div>
+            <p className="text-[10px] text-[#7C746F] font-medium mt-1">
+              Top: {expenseMetrics.topCategory}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 3C. CUSTOMER VIEW SUMMARY CARDS */}
       {activeSection === 'customers' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 animate-in fade-in">
           {/* Card 1: Sales / Credit Given */}
@@ -1035,7 +1327,11 @@ export default function ReportsScreen() {
       {displayedTransactions.length === 0 && (
         <div className="bg-white rounded-3xl p-8 sm:p-12 border border-[#EBE3D7] shadow-soft text-center space-y-4 animate-in fade-in">
           <div className="w-14 h-14 rounded-full bg-[#FAF7F2] border border-[#EBE3D7] flex items-center justify-center mx-auto text-[#7C746F]">
-            {activeSection === 'customers' ? (
+            {activeSection === 'sales' ? (
+              <TrendingUp className="w-7 h-7 text-[#566E54]" />
+            ) : activeSection === 'expenses' ? (
+              <TrendingDown className="w-7 h-7 text-[#BF745F]" />
+            ) : activeSection === 'customers' ? (
               <Users className="w-7 h-7 text-[#566E54]" />
             ) : activeSection === 'suppliers' ? (
               <Store className="w-7 h-7 text-[#BF745F]" />
@@ -1046,7 +1342,11 @@ export default function ReportsScreen() {
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="font-serif font-bold text-xl text-[#2D2825]">
               {searchQuery ? (
-                `No matching ${activeSection === 'customers' ? 'customer' : activeSection === 'suppliers' ? 'supplier' : 'transaction'} records`
+                `No matching ${activeSection} records`
+              ) : activeSection === 'sales' ? (
+                'No sales recorded in this period'
+              ) : activeSection === 'expenses' ? (
+                'No expenses recorded in this period'
               ) : activeSection === 'customers' ? (
                 'No customer transactions yet'
               ) : activeSection === 'suppliers' ? (
@@ -1058,6 +1358,10 @@ export default function ReportsScreen() {
             <p className="text-xs text-[#7C746F] leading-relaxed">
               {searchQuery
                 ? `No transactions found matching "${searchQuery}". Clear your search or adjust the date filter.`
+                : activeSection === 'sales'
+                ? 'Record your daily cash and UPI sales to populate your sales analytics.'
+                : activeSection === 'expenses'
+                ? 'Record your stock purchases, rent, transport, or utility expenses to track spending.'
                 : activeSection === 'customers'
                 ? 'Record customer sales, credit given, or payments received to build your customer ledger.'
                 : activeSection === 'suppliers'
@@ -1068,14 +1372,14 @@ export default function ReportsScreen() {
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <button
               onClick={() => {
-                setImportType(activeSection === 'suppliers' ? 'invoice' : 'upi');
+                setImportType(activeSection === 'expenses' || activeSection === 'suppliers' ? 'invoice' : 'upi');
                 setImportModalOpen(true);
               }}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#566E54] hover:bg-[#425541] text-white text-xs font-bold shadow-soft transition active:scale-95 touch-press"
             >
               <Plus className="w-4 h-4" />
               <span>
-                {activeSection === 'customers' ? 'Add Customer Record' : activeSection === 'suppliers' ? 'Add Supplier Bill / Payment' : 'Import / Add Transaction'}
+                {activeSection === 'sales' ? 'Add Sale Record' : activeSection === 'expenses' ? 'Add Expense Record' : activeSection === 'customers' ? 'Add Customer Record' : activeSection === 'suppliers' ? 'Add Supplier Bill / Payment' : 'Import / Add Transaction'}
               </span>
             </button>
             {searchQuery && (
@@ -1100,7 +1404,11 @@ export default function ReportsScreen() {
                 <h2 className="font-serif font-bold text-lg text-[#2D2825] flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-[#566E54]" />
                   <span>
-                    {activeSection === 'customers'
+                    {activeSection === 'sales'
+                      ? 'Daily Sales Revenue & Inflow'
+                      : activeSection === 'expenses'
+                      ? 'Daily Expense Outflow'
+                      : activeSection === 'customers'
                       ? 'Daily Customer Sales vs Received'
                       : activeSection === 'suppliers'
                       ? 'Daily Supplier Purchases vs Paid'
@@ -1108,7 +1416,11 @@ export default function ReportsScreen() {
                   </span>
                 </h2>
                 <p className="text-xs text-[#7C746F] font-medium mt-0.5">
-                  {activeSection === 'customers'
+                  {activeSection === 'sales'
+                    ? 'Daily sales collections comparing Cash vs UPI digital payments'
+                    : activeSection === 'expenses'
+                    ? 'Daily expenses comparing stock purchases vs running operational costs'
+                    : activeSection === 'customers'
                     ? 'Daily sales & credit extended vs money collected from customers'
                     : activeSection === 'suppliers'
                     ? 'Daily stock purchases & bills vs payments made to suppliers'
@@ -1118,11 +1430,11 @@ export default function ReportsScreen() {
               <div className="flex items-center gap-3 text-xs font-semibold">
                 <span className="flex items-center gap-1.5 text-[#566E54]">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#6B8569]" />
-                  {activeSection === 'customers' ? 'Sales / Given' : activeSection === 'suppliers' ? 'Purchases' : 'Money In'}
+                  {activeSection === 'sales' ? 'Cash Sales' : activeSection === 'expenses' ? 'Stock / Purchases' : activeSection === 'customers' ? 'Sales / Given' : activeSection === 'suppliers' ? 'Purchases' : 'Money In'}
                 </span>
                 <span className="flex items-center gap-1.5 text-[#BF745F]">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#D39C8C]" />
-                  {activeSection === 'customers' ? 'Received' : activeSection === 'suppliers' ? 'Paid' : 'Money Out'}
+                  {activeSection === 'sales' ? 'UPI Digital' : activeSection === 'expenses' ? 'Other Costs' : activeSection === 'customers' ? 'Received' : activeSection === 'suppliers' ? 'Paid' : 'Money Out'}
                 </span>
               </div>
             </div>
@@ -1144,20 +1456,20 @@ export default function ReportsScreen() {
                         >
                           <div className="opacity-0 group-hover:opacity-100 pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 bg-[#2D2825] text-white text-[10px] px-2.5 py-1 rounded-xl whitespace-nowrap z-20 shadow-soft-lg">
                             <span className="block font-bold">
-                              {activeSection === 'customers' ? 'Sales' : activeSection === 'suppliers' ? 'Purchases' : 'In'}: ₹{item.bar1}
+                              {activeSection === 'sales' ? 'Cash' : activeSection === 'expenses' ? 'Stock' : activeSection === 'customers' ? 'Sales' : activeSection === 'suppliers' ? 'Purchases' : 'In'}: ₹{item.bar1}
                             </span>
                             <span className="block text-[8px] text-[#8EAA8C]">{item.dateStr}</span>
                           </div>
                         </div>
 
-                        {/* Bar 2: Received / Paid / Outflow */}
+                        {/* Bar 2: Received / Paid / Outflow / UPI */}
                         <div
                           className="w-1/2 bg-[#E4BDB0] hover:bg-[#D39C8C] rounded-t-full transition-all duration-300 relative shadow-soft"
                           style={{ height: `${Math.max(4, bar2Height)}%` }}
                         >
                           <div className="opacity-0 group-hover:opacity-100 pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 bg-[#2D2825] text-white text-[10px] px-2.5 py-1 rounded-xl whitespace-nowrap z-20 shadow-soft-lg">
                             <span className="block font-bold">
-                              {activeSection === 'customers' ? 'Received' : activeSection === 'suppliers' ? 'Paid' : 'Out'}: ₹{item.bar2}
+                              {activeSection === 'sales' ? 'UPI' : activeSection === 'expenses' ? 'Other' : activeSection === 'customers' ? 'Received' : activeSection === 'suppliers' ? 'Paid' : 'Out'}: ₹{item.bar2}
                             </span>
                             <span className="block text-[8px] text-[#D39C8C]">{item.dateStr}</span>
                           </div>
@@ -1177,14 +1489,22 @@ export default function ReportsScreen() {
             <div className="pt-3 border-t border-[#F3EDE3] space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-[#2D2825]">
-                  {activeSection === 'customers'
+                  {activeSection === 'sales'
+                    ? 'Cash vs Digital Sales Ratio'
+                    : activeSection === 'expenses'
+                    ? 'Stock vs Operations Ratio'
+                    : activeSection === 'customers'
                     ? 'Customer Collection Rate'
                     : activeSection === 'suppliers'
                     ? 'Supplier Settlement Rate'
                     : 'Operating Efficiency'}
                 </span>
                 <span className="font-bold text-[#566E54]">
-                  {activeSection === 'customers'
+                  {activeSection === 'sales'
+                    ? `${salesMetrics.total > 0 ? Math.round((salesMetrics.cash / salesMetrics.total) * 100) : 100}% Cash Inflow`
+                    : activeSection === 'expenses'
+                    ? `${expenseMetrics.total > 0 ? Math.round((expenseMetrics.stockPurchases / expenseMetrics.total) * 100) : 100}% Inventory`
+                    : activeSection === 'customers'
                     ? `${customerMetrics.sales > 0 ? Math.round((customerMetrics.received / customerMetrics.sales) * 100) : 100}% Collected`
                     : activeSection === 'suppliers'
                     ? `${supplierMetrics.purchases > 0 ? Math.round((supplierMetrics.paid / supplierMetrics.purchases) * 100) : 100}% Settled`
@@ -1195,7 +1515,11 @@ export default function ReportsScreen() {
                 <div 
                   className="bg-[#6B8569] h-full transition-all duration-500" 
                   style={{
-                    width: activeSection === 'customers'
+                    width: activeSection === 'sales'
+                      ? `${salesMetrics.total > 0 ? (salesMetrics.cash / salesMetrics.total) * 100 : 50}%`
+                      : activeSection === 'expenses'
+                      ? `${expenseMetrics.total > 0 ? (expenseMetrics.stockPurchases / expenseMetrics.total) * 100 : 50}%`
+                      : activeSection === 'customers'
                       ? `${customerMetrics.sales > 0 ? Math.min(100, (customerMetrics.received / customerMetrics.sales) * 100) : 100}%`
                       : activeSection === 'suppliers'
                       ? `${supplierMetrics.purchases > 0 ? Math.min(100, (supplierMetrics.paid / supplierMetrics.purchases) * 100) : 100}%`
@@ -1205,7 +1529,11 @@ export default function ReportsScreen() {
                 <div 
                   className="bg-[#D39C8C] h-full transition-all duration-500" 
                   style={{
-                    width: activeSection === 'customers'
+                    width: activeSection === 'sales'
+                      ? `${salesMetrics.total > 0 ? (salesMetrics.upi / salesMetrics.total) * 100 : 50}%`
+                      : activeSection === 'expenses'
+                      ? `${expenseMetrics.total > 0 ? (expenseMetrics.operational / expenseMetrics.total) * 100 : 50}%`
+                      : activeSection === 'customers'
                       ? `${customerMetrics.sales > 0 ? Math.max(0, 100 - (customerMetrics.received / customerMetrics.sales) * 100) : 0}%`
                       : activeSection === 'suppliers'
                       ? `${supplierMetrics.purchases > 0 ? Math.max(0, 100 - (supplierMetrics.paid / supplierMetrics.purchases) * 100) : 0}%`
@@ -1215,10 +1543,10 @@ export default function ReportsScreen() {
               </div>
               <div className="flex items-center justify-between text-[11px] text-[#7C746F]">
                 <span>
-                  {activeSection === 'customers' ? `Received (₹${customerMetrics.received.toLocaleString()})` : activeSection === 'suppliers' ? `Paid (₹${supplierMetrics.paid.toLocaleString()})` : 'Sales Share'}
+                  {activeSection === 'sales' ? `Cash (₹${salesMetrics.cash.toLocaleString()})` : activeSection === 'expenses' ? `Stock (₹${expenseMetrics.stockPurchases.toLocaleString()})` : activeSection === 'customers' ? `Received (₹${customerMetrics.received.toLocaleString()})` : activeSection === 'suppliers' ? `Paid (₹${supplierMetrics.paid.toLocaleString()})` : 'Sales Share'}
                 </span>
                 <span>
-                  {activeSection === 'customers' ? `Pending Owed (₹${customerMetrics.pending.toLocaleString()})` : activeSection === 'suppliers' ? `Pending Payable (₹${supplierMetrics.pending.toLocaleString()})` : 'Expense Share'}
+                  {activeSection === 'sales' ? `Digital UPI (₹${salesMetrics.upi.toLocaleString()})` : activeSection === 'expenses' ? `Operations (₹${expenseMetrics.operational.toLocaleString()})` : activeSection === 'customers' ? `Pending Owed (₹${customerMetrics.pending.toLocaleString()})` : activeSection === 'suppliers' ? `Pending Payable (₹${supplierMetrics.pending.toLocaleString()})` : 'Expense Share'}
                 </span>
               </div>
             </div>
@@ -1398,7 +1726,11 @@ export default function ReportsScreen() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="font-serif font-bold text-lg text-[#2D2825] flex items-center gap-2">
-                {activeSection === 'customers' ? (
+                {activeSection === 'sales' ? (
+                  <TrendingUp className="w-5 h-5 text-[#566E54]" />
+                ) : activeSection === 'expenses' ? (
+                  <TrendingDown className="w-5 h-5 text-[#BF745F]" />
+                ) : activeSection === 'customers' ? (
                   <Users className="w-5 h-5 text-[#566E54]" />
                 ) : activeSection === 'suppliers' ? (
                   <Store className="w-5 h-5 text-[#BF745F]" />
@@ -1406,7 +1738,11 @@ export default function ReportsScreen() {
                   <Receipt className="w-5 h-5 text-[#554C78]" />
                 )}
                 <span>
-                  {activeSection === 'customers' 
+                  {activeSection === 'sales'
+                    ? 'Sales Ledger Transactions'
+                    : activeSection === 'expenses'
+                    ? 'Expense Ledger Transactions'
+                    : activeSection === 'customers' 
                     ? 'Customer Ledger Transactions' 
                     : activeSection === 'suppliers' 
                     ? 'Supplier Ledger Transactions' 
@@ -1414,7 +1750,7 @@ export default function ReportsScreen() {
                 </span>
               </h2>
               <p className="text-xs text-[#7C746F] font-medium mt-0.5">
-                Showing {displayedTransactions.length} {activeSection === 'customers' ? 'customer' : activeSection === 'suppliers' ? 'supplier' : ''} entries for {dateRangeBounds.label}
+                Showing {displayedTransactions.length} {activeSection === 'sales' ? 'sale' : activeSection === 'expenses' ? 'expense' : activeSection === 'customers' ? 'customer' : activeSection === 'suppliers' ? 'supplier' : ''} entries for {dateRangeBounds.label}
               </p>
             </div>
 
